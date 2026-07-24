@@ -1,0 +1,140 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create draft release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          draft: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build:
+    needs: create-release
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            bundle-glob: src-tauri/target/release/bundle/{msi,nsis}/*
+          - os: macos-latest
+            target: universal-apple-darwin
+            bundle-glob: src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
+          - os: ubuntu-latest
+            bundle-glob: src-tauri/target/release/bundle/{deb,appimage}/*
+    runs-on: ${{ matrix.os }}
+    env:
+      # secrets.* isn't available in step-level `if:` conditionals, so
+      # resolve it into an env var here and check that instead below.
+      SIGNPATH_ENABLED: ${{ secrets.SIGNPATH_API_TOKEN != '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # The repo never carries a real version number (Cargo.toml/package.json
+      # stay pinned at v0.0.0). The tag pushed to trigger this workflow is the
+      # only source of truth for a release's version; tauri.conf.json has no
+      # "version" field of its own, so it falls back to whatever is in
+      # Cargo.toml, and the built app reports it via app.getVersion() at runtime.
+      - name: Set release version from tag
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          sed -i -E "s/^version = \".*\"/version = \"$VERSION\"/" src-tauri/Cargo.toml
+
+      - name: Install Linux dependencies
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            build-essential \
+            libssl-dev \
+            libgtk-3-dev
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.os == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build Tauri app
+        run: npm run tauri build -- ${{ matrix.target && format('--target {0}', matrix.target) || '' }}
+
+      # SignPath OSS free-tier signing (Windows only). Inert until
+      # SIGNPATH_API_TOKEN is added as a repo secret once the OSS
+      # application is approved. Field names for the SignPath action
+      # should be double-checked against SignPath's current docs when
+      # first enabling this, since we haven't run it against a real
+      # SignPath project yet.
+      - name: Upload unsigned artifact for SignPath
+        if: matrix.os == 'windows-latest' && env.SIGNPATH_ENABLED == 'true'
+        uses: actions/upload-artifact@v4
+        id: unsigned-artifact
+        with:
+          name: windows-unsigned
+          path: ${{ matrix.bundle-glob }}
+
+      - name: Submit SignPath signing request
+        if: matrix.os == 'windows-latest' && env.SIGNPATH_ENABLED == 'true'
+        uses: signpath/github-action-submit-signing-request@v1
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ secrets.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: entico-auth
+          signing-policy-slug: release-signing
+          github-artifact-id: ${{ steps.unsigned-artifact.outputs.artifact-id }}
+          wait-for-completion: true
+          output-artifact-directory: signed
+
+      - name: Upload release assets (signed)
+        if: matrix.os == 'windows-latest' && env.SIGNPATH_ENABLED == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          draft: true
+          files: signed/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload release assets (unsigned)
+        if: matrix.os != 'windows-latest' || env.SIGNPATH_ENABLED == 'false'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          draft: true
+          files: ${{ matrix.bundle-glob }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  publish-release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          draft: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
