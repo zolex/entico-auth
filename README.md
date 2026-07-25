@@ -5,6 +5,8 @@
 [![Platform](https://img.shields.io/badge/platform-Windows-blue)](#requirements)
 [![License](https://img.shields.io/github/license/zolex/entico-auth)](LICENSE)
 
+<img src="entico-auth.png" alt="Demo mode, second screenshot" align="right" width="120" hspace="20" vspace="0" />
+
 A focused Windows desktop app for viewing and managing TOTP accounts stored on a
 [YubiKey](https://www.yubico.com/)'s OATH application - styled in the spirit of
 [Ente Auth](https://ente.io/auth), built with [Tauri](https://tauri.app/) + Vue 3.

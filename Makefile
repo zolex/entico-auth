@@ -1,4 +1,4 @@
-.PHONY: all install dev demo build release test test-frontend test-rust lint clean
+.PHONY: all install dev demo build release test test-frontend test-rust lint clean icons
 
 all: build
 
@@ -37,3 +37,9 @@ lint:
 clean:
 	rm -rf dist
 	cd src-tauri && cargo clean
+
+# Regenerate src-tauri/icons from a source image (default: entico-auth.png).
+# Drops the android/ios/64x64.png output this project doesn't ship.
+icons:
+	npx tauri icon $(or $(SRC),entico-auth.png)
+	rm -rf src-tauri/icons/android src-tauri/icons/ios src-tauri/icons/64x64.png
