@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted } from 'vue'
+import { onMounted, onUnmounted, watch } from 'vue'
 import { ArrowLeft } from '@lucide/vue'
 import DialogTitle from './DialogTitle.vue'
 import type { YubiKeyInfo } from '../lib/types'
+import { pushDialog, popDialog, isTopDialog } from '../lib/dialogStack'
 
 const props = withDefaults(
   defineProps<{ visible: boolean; title: string; busy?: boolean; hideKey?: boolean; keys?: YubiKeyInfo[] }>(),
@@ -10,12 +11,28 @@ const props = withDefaults(
 )
 const emit = defineEmits<{ back: [] }>()
 
+// FullPageDialog instances nest (e.g. AddAccountSheet opened from within
+// OathDiffView) and never unmount, only toggle `visible` - so more than one
+// instance's Escape listener can be live at once. dialogStack tracks which
+// one is currently on top, so Escape only ever closes that one, matching the
+// back-arrow button (only the topmost one is reachable/visible).
+const id = Symbol()
+
+watch(
+  () => props.visible,
+  (visible) => (visible ? pushDialog(id) : popDialog(id)),
+  { immediate: true },
+)
+
 function onKeydown(e: KeyboardEvent) {
-  if (e.key === 'Escape' && props.visible && !props.busy) emit('back')
+  if (e.key === 'Escape' && props.visible && !props.busy && isTopDialog(id)) emit('back')
 }
 
 onMounted(() => window.addEventListener('keydown', onKeydown))
-onUnmounted(() => window.removeEventListener('keydown', onKeydown))
+onUnmounted(() => {
+  window.removeEventListener('keydown', onKeydown)
+  popDialog(id)
+})
 </script>
 
 <template>
