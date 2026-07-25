@@ -25,6 +25,15 @@ let tick: ReturnType<typeof setInterval> | null = null
 // on - without this, a card would keep showing the previous period's code
 // for a moment after the bar had already wrapped back around.
 let nextBoundary = nextBoundaryMs(now.value, props.account.period)
+// The code this card was showing as of the last boundary check, so the
+// interval below can tell "still the stale pre-boundary code" apart from
+// "the store's refresh already landed a fresh one." Without this, a refresh
+// that lands in the gap between this interval's own 250ms ticks (it isn't
+// synced to the boundary at all, just free-running from mount) gets
+// clobbered by the next tick blindly suppressing anyway - and since the code
+// won't change again until the *next* period, that leaves the card blank
+// for up to a full period instead of a moment.
+let codeAtLastBoundaryCheck = props.account.code
 const suppressCode = ref(false)
 
 onMounted(() => {
@@ -32,7 +41,10 @@ onMounted(() => {
     now.value = Date.now()
     if (now.value >= nextBoundary) {
       nextBoundary = nextBoundaryMs(now.value, props.account.period)
-      suppressCode.value = true
+      if (props.account.code === codeAtLastBoundaryCheck) {
+        suppressCode.value = true
+      }
+      codeAtLastBoundaryCheck = props.account.code
     }
   }, 250)
 })
@@ -43,6 +55,10 @@ onUnmounted(() => {
 watch(
   () => props.account.code,
   () => {
+    // Deliberately doesn't touch codeAtLastBoundaryCheck - that has to stay
+    // "the code as of the last boundary check" until the interval above
+    // actually processes the next one, or a code change landing between
+    // ticks would make the comparison above always see them as equal.
     suppressCode.value = false
   },
 )

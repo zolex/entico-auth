@@ -75,6 +75,22 @@ describe('AccountCard', () => {
       expect(wrapper.text()).toContain('998 877')
     })
 
+    it('does not blank the code if the store refreshes it before this card\'s own interval notices the boundary', async () => {
+      // Regression: the interval isn't synced to the boundary, just
+      // free-running every 250ms from mount - if a fresh code lands in the
+      // gap before this card's own next tick gets around to checking, the
+      // tick used to suppress anyway (mistaking the already-fresh code for
+      // the stale one), and nothing would un-suppress it again until the
+      // *next* period since the code doesn't change a second time.
+      const wrapper = mount(AccountCard, { props: { account } })
+
+      vi.setSystemTime(new Date('2026-07-22T10:00:30.050Z')) // just past the boundary
+      await wrapper.setProps({ account: { ...account, code: '998877' } }) // store already refreshed
+      await vi.advanceTimersByTimeAsync(250) // now this card's own tick catches up
+
+      expect(wrapper.text()).toContain('998 877')
+    })
+
     it('keeps "Tap to reveal" clickable across a boundary tick, since a touch account never has a code to go stale', async () => {
       // Regression: touch-required accounts always have `code: null`, so the
       // watcher that resets suppressCode when a fresh code lands never fires
