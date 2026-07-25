@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref } from 'vue'
-import { KeyRound, Shield, Settings, Info, GitCompare, Pencil } from '@lucide/vue'
+import { KeyRound, Shield, Settings, Info, GitCompare, Pencil, PlayCircle, LogOut } from '@lucide/vue'
 import { getVersionLabel } from '../lib/version'
 import { useKeysStore } from '../stores/keys'
+import { useUiStore } from '../stores/ui'
 
 const props = defineProps<{ visible: boolean }>()
 const emit = defineEmits<{
@@ -12,6 +13,7 @@ const emit = defineEmits<{
   openAbout: []
   openOathDiff: []
   openRenameKey: []
+  toggleDemo: []
 }>()
 
 function onKeydown(e: KeyboardEvent) {
@@ -27,6 +29,7 @@ onMounted(() => {
 onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 
 const keys = useKeysStore()
+const ui = useUiStore()
 </script>
 
 <template>
@@ -60,6 +63,13 @@ const keys = useKeysStore()
 
       <div class="divider divider-push" />
 
+      <button class="menu-item" @click="emit('toggleDemo'); emit('close')">
+        <span class="menu-icon">
+          <LogOut v-if="ui.demoMode" :size="16" />
+          <PlayCircle v-else :size="16" />
+        </span>
+        {{ ui.demoMode ? 'Exit Demo' : 'Try Demo' }}
+      </button>
       <button class="menu-item" @click="emit('openSettings'); emit('close')">
         <span class="menu-icon"><Settings :size="16" /></span> Settings
       </button>

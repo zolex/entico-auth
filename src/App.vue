@@ -138,6 +138,12 @@ onMounted(() => {
       // auto-lock simply stays off (its default) until the next app start.
     })
 
+  // Covers a `--demo` launch, where demo mode is already active in the
+  // backend before the frontend ever mounts.
+  ykman.isDemoMode().then((active) => {
+    ui.demoMode = active
+  })
+
   window.addEventListener('click', closeContextMenu)
   window.addEventListener('keydown', onGlobalKeydown)
 })
@@ -242,6 +248,22 @@ function openOathDiff() {
 function openRenameKey() {
   closeTransientUI()
   renameKeyOpen.value = true
+}
+
+// Entering/exiting demo mode doesn't touch real key/password/session state -
+// it just swaps what the backend's ykman-shaped commands return (see
+// src-tauri/src/demo.rs), then re-runs the same key check the app already
+// does on startup/hotplug to pick up the swapped data.
+async function toggleDemo() {
+  closeTransientUI()
+  if (ui.demoMode) {
+    await ykman.exitDemoMode()
+  } else {
+    await ykman.enterDemoMode()
+  }
+  ui.demoMode = !ui.demoMode
+  keys.activeSerial = null
+  await keys.checkOnceWithRetry()
 }
 
 function openPasswordSettings() {
@@ -541,10 +563,20 @@ watch(canSearch, (can) => {
       @open-about="openAbout"
       @open-oath-diff="openOathDiff"
       @open-rename-key="openRenameKey"
+      @toggle-demo="toggleDemo"
     />
+    <div v-if="ui.demoMode" class="demo-banner">
+      Demo Mode, no real YubiKey (Nano password: demo123, Bio password: demo456)
+      <button @click="toggleDemo">Exit</button>
+    </div>
 
     <div class="content-scroll">
-      <EmptyState v-if="keys.ykmanMissing" kind="ykman-missing" @open-settings="openSettings" />
+      <EmptyState
+        v-if="keys.ykmanMissing"
+        kind="ykman-missing"
+        @open-settings="openSettings"
+        @try-demo="toggleDemo"
+      />
       <EmptyState v-else-if="!keys.activeSerial && keys.keys.length === 0" kind="no-key" />
       <EmptyState v-else-if="!keys.activeSerial" kind="select-key" />
       <EmptyState v-else-if="oathDisabled" kind="oath-disabled" />
@@ -716,12 +748,42 @@ html, body { margin: 0; background: #0a0a0a; color: #f2f2f2; font-family: sans-s
 .page-dialog-back:hover:not(:disabled) { background: #202020; }
 .page-dialog-back:disabled { opacity: 0.4; cursor: default; }
 .page-dialog-body { padding: 8px 24px 32px; width: 100%; box-sizing: border-box; }
+
+/* Full-width buttons only make sense once the window is narrow enough that
+   they'd otherwise wrap or feel cramped - on a wide window let them shrink
+   to fit their label instead of stretching edge to edge. */
+@media (min-width: 640px) {
+  .page-dialog-body .btn-block { width: fit-content; }
+}
 </style>
 
 <style scoped>
 .app-shell { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 .content-scroll { flex: 1; overflow-y: auto; position: relative; }
 .search { box-sizing: border-box; margin: 8px 12px; padding: 6px 10px; width: calc(100% - 24px); background: #161616; border: 1px solid #2a2a2a; color: #f2f2f2; border-radius: 4px; }
+.demo-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 6px 12px;
+  background: var(--color-secondary);
+  color: #f2f2f2;
+  font-size: 13px;
+  text-align: center;
+}
+.demo-banner button {
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  background: transparent;
+  color: #f2f2f2;
+  border: 1px solid rgba(242, 242, 242, 0.4);
+  border-radius: 4px;
+  padding: 2px 10px;
+  cursor: pointer;
+}
+.demo-banner button:hover { background: rgba(242, 242, 242, 0.15); }
 .toast {
   position: fixed;
   bottom: 84px;

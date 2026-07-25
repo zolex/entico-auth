@@ -1,4 +1,5 @@
 mod commands;
+mod demo;
 mod presence;
 mod settings;
 mod tray;
@@ -152,6 +153,10 @@ pub fn run() {
             ykman::path::set_custom_path(settings.ykman_path.clone().map(std::path::PathBuf::from));
             sync_autostart(app.handle(), &settings);
 
+            if std::env::args().any(|a| a == "--demo") {
+                demo::enter();
+            }
+
             let launched_via_autostart = std::env::args().any(|a| a == AUTOSTART_ARG);
             let start_hidden = launched_via_autostart && settings.minimize_on_autostart;
             restore_window_bounds(app.handle(), &settings, start_hidden);
@@ -187,6 +192,9 @@ pub fn run() {
             commands::set_ykman_path,
             commands::clear_ykman_path,
             commands::set_key_name,
+            commands::enter_demo_mode,
+            commands::exit_demo_mode,
+            commands::is_demo_mode,
             presence::check_hello_availability,
             presence::verify_presence,
         ])

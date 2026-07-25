@@ -17,6 +17,10 @@ export const useUiStore = defineStore('ui', {
     // serial so switching between multiple password-protected keys never
     // sends one key's password to another.
     sessionPasswords: {} as Record<string, string>,
+    // Set while the app is showing simulated demo data instead of a real
+    // YubiKey - session-only, never persisted. See ykman-client.ts's
+    // enterDemoMode/exitDemoMode.
+    demoMode: false,
   }),
   getters: {
     sessionPasswordFor: (state) => (serial: string) => state.sessionPasswords[serial] ?? null,

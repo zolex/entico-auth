@@ -1,3 +1,4 @@
+use crate::demo;
 use crate::settings::{load, save, AppSettings};
 use crate::ykman::exec::{run_at, run_ykman};
 use crate::ykman::parse::{
@@ -433,6 +434,21 @@ pub fn clear_ykman_path(app: tauri::AppHandle) -> Result<(), String> {
     save(&app, &settings)?;
     set_custom_path(None);
     Ok(())
+}
+
+#[tauri::command]
+pub fn enter_demo_mode() {
+    demo::enter();
+}
+
+#[tauri::command]
+pub fn exit_demo_mode() {
+    demo::exit();
+}
+
+#[tauri::command]
+pub fn is_demo_mode() -> bool {
+    demo::is_active()
 }
 
 #[tauri::command]

@@ -23,6 +23,7 @@ vi.mock('./lib/ykman-client', () => ({
   ykman: {
     getSettings: vi.fn().mockResolvedValue({ idleLockMinutes: null }),
     oathStatus: vi.fn().mockResolvedValue({ passwordProtected: false, remembered: false }),
+    isDemoMode: vi.fn().mockResolvedValue(false),
   },
   describeYkmanError: (e: unknown) => {
     const err = e as { kind?: string; message?: string }

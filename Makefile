@@ -1,4 +1,4 @@
-.PHONY: all install dev build release test test-frontend test-rust lint clean
+.PHONY: all install dev demo build release test test-frontend test-rust lint clean
 
 all: build
 
@@ -7,6 +7,11 @@ install:
 
 dev:
 	npm run tauri dev
+
+# Runs the app against in-memory sample data instead of a real YubiKey - see
+# docs/superpowers/specs/2026-07-25-demo-mode-design.md
+demo:
+	npm run tauri dev -- --demo
 
 # Type-check + build the frontend, then build the Tauri app (debug)
 build:

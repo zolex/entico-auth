@@ -130,6 +130,9 @@ fn logged_args(args: &[&str]) -> Vec<String> {
 }
 
 pub fn run_ykman(serial: Option<&str>, args: &[&str]) -> Result<String, YkmanError> {
+    if crate::demo::is_active() {
+        return crate::demo::run(serial, args);
+    }
     let exe = find_ykman()?;
     run_at(&exe, serial, args)
 }

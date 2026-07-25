@@ -1,6 +1,6 @@
 <script setup lang="ts">
 defineProps<{ kind: 'ykman-missing' | 'no-key' | 'select-key' | 'oath-disabled' }>()
-defineEmits<{ 'open-settings': [] }>()
+defineEmits<{ 'open-settings': []; 'try-demo': [] }>()
 </script>
 
 <template>
@@ -19,7 +19,10 @@ defineEmits<{ 'open-settings': [] }>()
           Download ykman from the official page</a><br/>
           Then install it and if it does not get auto-detected, open Settings to point Entico Auth at it.
       </p>
-      <button class="btn btn-primary" @click="$emit('open-settings')">Open Settings</button>
+      <div class="empty-actions">
+        <button class="btn btn-primary" @click="$emit('open-settings')">Open Settings</button>
+        <button class="btn btn-secondary" @click="$emit('try-demo')">Try Demo</button>
+      </div>
     </template>
     <template v-else-if="kind === 'no-key'">
       <p>Plug in a YubiKey to get started.</p>
@@ -42,4 +45,5 @@ a { color: var(--color-primary); }
 .empty-desc a { font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
 .empty-desc a:hover { color: var(--color-primary-hover); }
 .empty button { margin-top: 8px; }
+.empty-actions { display: flex; gap: 8px; }
 </style>
