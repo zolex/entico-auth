@@ -3,6 +3,7 @@ import { mount } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import OathDiffView from '../OathDiffView.vue'
 import RenameDialog from '../RenameDialog.vue'
+import AddAccountSheet from '../AddAccountSheet.vue'
 import { useKeysStore } from '../../stores/keys'
 import { ykman } from '../../lib/ykman-client'
 
@@ -10,6 +11,7 @@ vi.mock('../../lib/ykman-client', () => ({
   ykman: {
     oathStatus: vi.fn().mockResolvedValue({ passwordProtected: false, remembered: false }),
     oathListAccounts: vi.fn().mockResolvedValue([]),
+    oathGetCodes: vi.fn().mockResolvedValue([]),
   },
   describeYkmanError: () => 'Something went wrong talking to the YubiKey.',
 }))
@@ -35,6 +37,9 @@ describe('OathDiffView', () => {
         ? [{ query: 'Service:user', issuer: 'Service', name: 'user', period: 30, touchRequired: false }]
         : [],
     )
+    vi.mocked(ykman.oathGetCodes).mockImplementation(async (serial: string) =>
+      serial === 'AAA' ? [{ query: 'Service:user', code: '123456' }] : [],
+    )
 
     // visible starts false and flips to true - the component's own watcher
     // (not `immediate`) only runs the scan on that transition.
@@ -54,5 +59,35 @@ describe('OathDiffView', () => {
     expect(dialog.props('issuer')).toBe('Service')
     expect(dialog.props('name')).toBe('user')
     expect(dialog.props('selectedKeys')).toEqual([{ serial: 'AAA', name: 'Key A' }])
+  })
+
+  it('prefills touch-required on "Add to missing keys" for a touch-required account', async () => {
+    useKeysStore().keys = [
+      { serial: 'AAA', name: 'Key A' },
+      { serial: 'BBB', name: 'Key B' },
+    ]
+    vi.mocked(ykman.oathListAccounts).mockImplementation(async (serial: string) =>
+      serial === 'AAA'
+        ? [{ query: 'Service:user', issuer: 'Service', name: 'user', period: 30, touchRequired: false }]
+        : [],
+    )
+    // Touch-required accounts still show up in oathGetCodes - just with a
+    // null code - so a mock that omits the entry entirely wouldn't catch a
+    // presence-only (rather than null-code) derivation bug.
+    vi.mocked(ykman.oathGetCodes).mockImplementation(async (serial: string) =>
+      serial === 'AAA' ? [{ query: 'Service:user', code: null }] : [],
+    )
+
+    const wrapper = mount(OathDiffView, { props: { visible: false } })
+    await wrapper.setProps({ visible: true })
+    await flush()
+
+    await wrapper.find('.yb-card').trigger('contextmenu')
+    const buttons = wrapper.findAll('.context-menu button')
+    await buttons[0].trigger('click')
+
+    const sheet = wrapper.findComponent(AddAccountSheet)
+    expect(sheet.exists()).toBe(true)
+    expect(sheet.props('prefill')).toMatchObject({ touchRequired: true })
   })
 })

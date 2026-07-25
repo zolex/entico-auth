@@ -97,8 +97,16 @@ async function run() {
       continue
     }
     try {
-      const accounts = await ykman.oathListAccounts(k.serial, password)
-      collected.push({ serial: k.serial, keyName: k.name, accounts })
+      const [accounts, codes] = await Promise.all([
+        ykman.oathListAccounts(k.serial, password),
+        ykman.oathGetCodes(k.serial, password),
+      ])
+      // oathListAccounts never reports touch-required (ykman's list command
+      // doesn't expose it) - a touch-required account still shows up in
+      // oathGetCodes, just with a null code, same derivation stores/accounts.ts uses.
+      const codeByQuery = new Map(codes.map((c) => [c.query, c.code]))
+      const withTouch = accounts.map((a) => ({ ...a, touchRequired: (codeByQuery.get(a.query) ?? null) === null }))
+      collected.push({ serial: k.serial, keyName: k.name, accounts: withTouch })
     } catch {
       skipped.value.push({ serial: k.serial, keyName: k.name })
     }
