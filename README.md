@@ -1,5 +1,10 @@
 # Entico Auth
 
+[![CI](https://github.com/zolex/entico-auth/actions/workflows/ci.yml/badge.svg)](https://github.com/zolex/entico-auth/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/zolex/entico-auth)](https://github.com/zolex/entico-auth/releases)
+[![Platform](https://img.shields.io/badge/platform-Windows-blue)](#requirements)
+[![License](https://img.shields.io/github/license/zolex/entico-auth)](LICENSE)
+
 A focused Windows desktop app for viewing and managing TOTP accounts stored on a
 [YubiKey](https://www.yubico.com/)'s OATH application - styled in the spirit of
 [Ente Auth](https://ente.io/auth), built with [Tauri](https://tauri.app/) + Vue 3.
