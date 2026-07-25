@@ -11,7 +11,7 @@ dev:
 # Runs the app against in-memory sample data instead of a real YubiKey - see
 # docs/superpowers/specs/2026-07-25-demo-mode-design.md
 demo:
-	npm run tauri dev -- --demo
+	npm run tauri dev -- -- -- --demo
 
 # Type-check + build the frontend, then build the Tauri app (debug)
 build:
