@@ -233,7 +233,7 @@ fn key_defs() -> Vec<KeyDef> {
             name: "Mobile",
             device_type: "YubiKey 5 Nano",
             firmware_version: "5.4.3",
-            password: Some("demo123"),
+            password: Some("mobile123"),
             remembered: false,
             account_ids: synced_except_backup
                 .iter()
@@ -246,7 +246,7 @@ fn key_defs() -> Vec<KeyDef> {
             name: "Backup",
             device_type: "YubiKey Bio - FIDO Edition",
             firmware_version: "5.7.1",
-            password: Some("demo456"),
+            password: Some("backup123"),
             remembered: true,
             account_ids: SYNCED_EVERYWHERE
                 .iter()
@@ -337,8 +337,8 @@ const SIMULATED_TOUCH_DELAY: Duration = Duration::from_secs(2);
 // on top of whatever it does anyway. No `rand` dependency needed for a
 // cosmetic jitter this small - the low bits of the system clock are random
 // enough.
-const SIMULATED_LATENCY_MIN_MS: u64 = 200;
-const SIMULATED_LATENCY_JITTER_MS: u64 = 666;
+const SIMULATED_LATENCY_MIN_MS: u64 = 150;
+const SIMULATED_LATENCY_JITTER_MS: u64 = 500;
 
 fn simulated_latency() -> Duration {
     let nanos = SystemTime::now()
@@ -783,7 +783,7 @@ mod tests {
         enter();
         let out = run(
             Some("36700222"),
-            &["oath", "accounts", "list", "-o", "-P", "-p", "demo123"],
+            &["oath", "accounts", "list", "-o", "-P", "-p", "mobile123"],
         )
         .unwrap();
         assert!(out.contains("GitHub:octocat"));
