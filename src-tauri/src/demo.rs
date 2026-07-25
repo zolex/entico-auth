@@ -275,19 +275,16 @@ fn seed() -> DemoState {
 }
 
 // Mirrors the auth contract every real oath_* command relies on: a
-// password-protected, not-remembered key requires a matching password on
-// every call; a remembered key ignores whatever (or no) password was
-// passed, same as a real key with `ykman oath access remember` already run.
+// password-protected key requires a matching password whenever one is given;
+// a remembered key additionally tolerates a missing one (real ykman would
+// fill it in from its own keychain), same as `ykman oath access remember`.
 fn check_password(key: &DemoKey, password: Option<&str>) -> Result<(), YkmanError> {
-    match &key.password {
-        Some(expected) if !key.remembered => {
-            if password == Some(expected.as_str()) {
-                Ok(())
-            } else {
-                Err(YkmanError::WrongPassword)
-            }
-        }
-        _ => Ok(()),
+    match (&key.password, password) {
+        (Some(expected), Some(given)) if given == expected => Ok(()),
+        (Some(_), Some(_)) => Err(YkmanError::WrongPassword),
+        (Some(_), None) if key.remembered => Ok(()),
+        (Some(_), None) => Err(YkmanError::WrongPassword),
+        (None, _) => Ok(()),
     }
 }
 
