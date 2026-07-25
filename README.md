@@ -15,25 +15,29 @@ thin, good-looking window onto whatever is already on your key, nothing more.
 
 ## Features
 
-The look and feel of [Ente Auth](https://ente.io/auth) - a clean, live account grid instead of
-the official [Yubico Authenticator](https://www.yubico.com/products/yubico-authenticator/)'s
-utilitarian list - plus a few YubiKey-specific things Yubico Authenticator doesn't do:
+Entico Auth is an authenticator app that works with Yubico YubiKey's OATH application, but with
+the look and feel of [Ente Auth](https://ente.io/auth): A clean account grid instead of the
+official [Yubico Authenticator](https://www.yubico.com/products/yubico-authenticator/)'s
+utilitarian list with several clicks required to create and copy a TOTP.
 
+Key features beyond the user experience:
 - **Add an account to every connected key at once**, instead of repeating manual entry per key.
-- **A diff view across connected keys** - see at a glance which accounts are missing or out of
-  sync between two keys, and fix it from the same screen.
-- **Optional Windows Hello confirmation** on every write (add, rename, delete, OATH password changes), so
-  a second person at an unlocked, unattended machine can't slip a change through.
-- **Try Demo mode** - explore the full UI with simulated accounts, no YubiKey required.
+- **Import a QR-Code** from the disk to add a new account
+- **A diff view across connected keys**: See at a glance which accounts are missing or out of sync
+between two keys
+- Optional **Windows Hello protection** on every write (add, rename, delete, OATH password changes),
+so a second person at an unlocked, unattended machine can't slip a change through, even if ykman is
+configured to remember the user's password.
+- **Demo mode** which lets users explore the full UI with simulated accounts, no YubiKey required.
 
-Beyond that: QR-code account import, tap-to-reveal accounts, rename/delete, OATH password
-support, multi-key switching, system tray with autostart, and search. No secrets are ever
-stored by Entico Auth - only non-sensitive settings like window/tray behavior, or custom key names are persisted.
+Beyond that: tap-to-reveal accounts, rename/delete, OATH password support, multi-key switching,
+system tray with autostart, and search. No secrets are ever stored by Entico Auth - only
+non-sensitive settings like window/tray behavior, or custom key names are persisted.
 
 ## Requirements
 
 - Windows 10/11
-- [YubiKey Manager](https://developers.yubico.com/yubikey-manager/Releases/) (`ykman.exe`)
+- The official [YubiKey Manager](https://developers.yubico.com/yubikey-manager/Releases/) (`ykman.exe`)
   installed
 - A YubiKey with the OATH application enabled
 - Optional: Windows Hello enrolled, for additional write-protection when `ykman` remembers your password
@@ -45,11 +49,9 @@ Download the latest installer (`.msi` or `.exe`) from the
 
 ## Demo
 
-No YubiKey or `ykman` install handy? Pick "Try Demo" from the menu. It swaps in a fully simulated
-key with a few sample accounts, computed with real TOTP math, so codes tick over just like the
-real thing. Every feature works against it - add, rename, delete, touch-required reveal, multi-key
-diff - nothing here ever touches actual hardware or `ykman.exe`. A banner stays on screen the whole
-time so it's never mistaken for a real key. Exit any time from the same menu.
+No YubiKey or `ykman` install handy? Pick "Try Demo" from the menu. It swaps in fully simulated
+keys with a few sample accounts, computed with real TOTP math, so codes tick over just like the
+real thing. Every feature works against it - add, rename, delete, touch-required reveal, multi-key diff - nothing here ever touches actual hardware or `ykman.exe`. A banner stays on screen the whole time so it's never mistaken for a real key. Exit any time from the same menu.
 
 ### Menu with multiple YukiKeys
 <img src="docs/demo1.png" alt="Account grid in demo mode" />
