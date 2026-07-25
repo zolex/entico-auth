@@ -32,6 +32,28 @@ const keys = useKeysStore()
 const accounts = useAccountsStore()
 const ui = useUiStore()
 
+// The banner's own height (0 when not in demo mode) - exposed as a CSS var
+// so every fixed-position overlay (dialogs, menus, TouchDialog) can offset
+// itself below it instead of being covered by it. Measured rather than
+// hardcoded since the banner's text wraps at narrow window widths.
+const demoBannerRef = ref<HTMLElement | null>(null)
+const demoBannerHeight = ref(0)
+let demoBannerObserver: ResizeObserver | null = null
+watch(demoBannerRef, (el) => {
+  demoBannerObserver?.disconnect()
+  demoBannerObserver = null
+  demoBannerHeight.value = el?.offsetHeight ?? 0
+  if (el) {
+    demoBannerObserver = new ResizeObserver(([entry]) => {
+      // contentRect excludes padding/border - offsetHeight matches the
+      // initial measurement above and what the layout actually reserves.
+      demoBannerHeight.value = (entry.target as HTMLElement).offsetHeight
+    })
+    demoBannerObserver.observe(el)
+  }
+})
+onUnmounted(() => demoBannerObserver?.disconnect())
+
 const menuOpen = ref(false)
 const searchOpen = ref(false)
 const searchInputRef = ref<HTMLInputElement | null>(null)
@@ -550,7 +572,13 @@ watch(canSearch, (can) => {
 </script>
 
 <template>
-  <div class="app-shell" @mousemove="ui.noteActivity()" @keydown="ui.noteActivity()" @contextmenu.prevent>
+  <div
+    class="app-shell"
+    :style="{ '--demo-banner-h': `${demoBannerHeight}px` }"
+    @mousemove="ui.noteActivity()"
+    @keydown="ui.noteActivity()"
+    @contextmenu.prevent
+  >
     <!-- Blanket-disables the native right-click menu everywhere; anything that wants its own
          context menu (see AccountCard's contextmenu handler) already calls preventDefault()
          itself further down the bubble chain, so this only affects places nobody implemented. -->
@@ -565,8 +593,8 @@ watch(canSearch, (can) => {
       @open-rename-key="openRenameKey"
       @toggle-demo="toggleDemo"
     />
-    <div v-if="ui.demoMode" class="demo-banner">
-      Demo Mode, no real YubiKey (Nano password: demo123, Bio password: demo456)
+    <div v-if="ui.demoMode" ref="demoBannerRef" class="demo-banner">
+      Demo Mode, no real YubiKey [ Mobile password: mobile123, Backup password: backup123 ]
       <button @click="toggleDemo">Exit</button>
     </div>
 
@@ -670,6 +698,7 @@ watch(canSearch, (can) => {
 <style>
 :root {
   --titlebar-h: 44px;
+  --demo-banner-h: 0px;
   --color-primary: #9aca3c;
   --color-primary-hover: #86ab32;
   --color-primary-ink: #0a0a0a;
@@ -742,7 +771,7 @@ html, body { margin: 0; background: #0a0a0a; color: #f2f2f2; font-family: sans-s
 /* Full-page dialog shell, used for anything you navigate "into" (Add,
    Rename, Settings, OATH password). Simple yes/no alerts stay as centered
    modals instead - see ConfirmDialog/InfoDialog/UnlockDialog. */
-.page-dialog { position: fixed; top: var(--titlebar-h); left: 0; right: 0; bottom: 0; background: #0a0a0a; z-index: 30; display: flex; flex-direction: column; overflow-y: auto; }
+.page-dialog { position: fixed; top: calc(var(--titlebar-h) + var(--demo-banner-h)); left: 0; right: 0; bottom: 0; background: #0a0a0a; z-index: 30; display: flex; flex-direction: column; overflow-y: auto; }
 .page-dialog-header { display: flex; align-items: center; gap: 18px; padding: 20px 24px; flex-shrink: 0; }
 .page-dialog-back { display: inline-flex; align-items: center; justify-content: center; background: none; border: none; color: #f2f2f2; cursor: pointer; padding: 4px 8px; line-height: 1; border-radius: 6px; }
 .page-dialog-back:hover:not(:disabled) { background: #202020; }

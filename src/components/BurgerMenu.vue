@@ -85,7 +85,7 @@ const ui = useUiStore()
 <style scoped>
 .backdrop {
   position: fixed;
-  top: var(--titlebar-h);
+  top: calc(var(--titlebar-h) + var(--demo-banner-h));
   left: 0;
   right: 0;
   bottom: 0;
@@ -99,7 +99,7 @@ const ui = useUiStore()
 }
 .menu {
   position: fixed;
-  top: var(--titlebar-h);
+  top: calc(var(--titlebar-h) + var(--demo-banner-h));
   left: 0;
   bottom: 0;
   width: 340px;

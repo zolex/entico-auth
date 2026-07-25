@@ -29,7 +29,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 <style scoped>
 .overlay {
   position: fixed;
-  top: var(--titlebar-h);
+  top: calc(var(--titlebar-h) + var(--demo-banner-h));
   left: 0;
   right: 0;
   bottom: 0;
