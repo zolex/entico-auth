@@ -228,6 +228,10 @@ function finishRenameAll() {
 <style scoped>
 .btn-row { display: flex; gap: 10px; margin-top: 28px; }
 .btn-row .btn-block { margin-top: 0; width: auto; flex: 1; }
+@media (min-width: 640px) {
+  .btn-row { justify-content: flex-start; }
+  .btn-row .btn-block { flex: none; width: fit-content; }
+}
 .rename-all-results { list-style: none; margin: 22px 0 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
 .rename-all-results li { display: flex; justify-content: space-between; gap: 10px; padding-bottom: 10px; border-bottom: 1px solid #2a2a2a; font-size: 14px; }
 .key-name { color: #f2f2f2; }

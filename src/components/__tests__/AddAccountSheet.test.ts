@@ -181,7 +181,7 @@ describe('AddAccountSheet', () => {
         { serial: 'BBB', name: 'Key B' },
       ]
       const wrapper = mount(AddAccountSheet)
-      expect(wrapper.find('[data-test="manual-submit-all"]').text()).toBe('Save to all Keys')
+      expect(wrapper.find('[data-test="manual-submit-all"]').text()).toBe('Add to all keys')
     })
 
     it('saves to every connected key, prompting only for the one needing a password', async () => {
@@ -328,7 +328,7 @@ describe('AddAccountSheet', () => {
       expect(wrapper.find<HTMLInputElement>('input[type="number"]').element.value).toBe('60')
       expect(wrapper.find('[data-test="manual-submit"]').exists()).toBe(false)
       expect(wrapper.find('[data-test="manual-submit-all"]').exists()).toBe(false)
-      expect(wrapper.find('[data-test="manual-submit-missing"]').text()).toBe('Save to missing keys')
+      expect(wrapper.find('[data-test="manual-submit-missing"]').text()).toBe('Add to selected keys')
     })
 
     it('saves only to the missing keys passed in, not every connected key', async () => {

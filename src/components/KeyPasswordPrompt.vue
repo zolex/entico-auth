@@ -68,4 +68,8 @@ watch(
 <style scoped>
 .btn-row { display: flex; gap: 10px; margin-top: 28px; }
 .btn-row .btn-block { margin-top: 0; width: auto; flex: 1; }
+@media (min-width: 640px) {
+  .btn-row { justify-content: flex-start; }
+  .btn-row .btn-block { flex: none; width: fit-content; }
+}
 </style>

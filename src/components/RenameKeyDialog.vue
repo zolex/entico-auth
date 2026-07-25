@@ -58,7 +58,7 @@ async function save() {
     <p v-if="error" class="field-error">{{ error }}</p>
     <button class="btn btn-primary btn-block" data-test="rename-key-submit" tabindex="2" :disabled="busy" @click="save">
       <LoadingSpinner v-if="busy" inline :size="14" />
-      <template v-else>Save</template>
+      <template v-else>Rename</template>
     </button>
   </FullPageDialog>
 </template>

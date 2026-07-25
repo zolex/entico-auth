@@ -305,24 +305,24 @@ onMounted(async () => {
             @click="submitToMissingKeys"
           >
             <LoadingSpinner v-if="saveAllBusy" inline :size="14" />
-            <template v-else>Save to missing keys</template>
+            <template v-else>Add to selected keys</template>
           </button>
         </template>
         <template v-else>
-          <button class="btn btn-primary btn-block" data-test="manual-submit" tabindex="9" :disabled="busy || saveAllBusy" @click="submitManual">
+          <button class="btn btn-secondary-solid btn-block" data-test="manual-submit" tabindex="9" :disabled="busy || saveAllBusy" @click="submitManual">
             <LoadingSpinner v-if="busy" inline :size="14" />
-            <template v-else>Save</template>
+            <template v-else>Add</template>
           </button>
           <button
             v-if="showSaveAll"
-            class="btn btn-secondary-solid btn-block"
+            class="btn btn-primary btn-block"
             data-test="manual-submit-all"
             tabindex="10"
             :disabled="busy || saveAllBusy"
             @click="submitManualToAll"
           >
             <LoadingSpinner v-if="saveAllBusy" inline :size="14" />
-            <template v-else>Save to all Keys</template>
+            <template v-else>Add to all keys</template>
           </button>
         </template>
       </div>
@@ -395,6 +395,10 @@ onMounted(async () => {
 }
 .btn-row { display: flex; gap: 10px; margin-top: 28px; }
 .btn-row .btn-block { margin-top: 0; width: auto; flex: 1; }
+@media (min-width: 640px) {
+  .btn-row { justify-content: flex-start; }
+  .btn-row .btn-block { flex: none; width: fit-content; }
+}
 .save-all-results { list-style: none; margin: 22px 0 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
 .save-all-results li { display: flex; justify-content: space-between; gap: 10px; padding-bottom: 10px; border-bottom: 1px solid #2a2a2a; font-size: 14px; }
 .key-name { color: #f2f2f2; }
