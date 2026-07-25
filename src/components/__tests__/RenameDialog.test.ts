@@ -5,6 +5,7 @@ import RenameDialog from '../RenameDialog.vue'
 import { useKeysStore } from '../../stores/keys'
 import { useUiStore } from '../../stores/ui'
 import { ykman } from '../../lib/ykman-client'
+import { PresenceCancelledError, requirePresence } from '../../lib/presence'
 
 vi.mock('../../lib/ykman-client', () => ({
   ykman: {
@@ -14,12 +15,18 @@ vi.mock('../../lib/ykman-client', () => ({
     oathRename: vi.fn().mockResolvedValue(undefined),
   },
   describeYkmanError: (e: unknown) => {
+    if (e instanceof PresenceCancelledError) return 'Cancelled.'
     const err = e as { kind?: string; message?: string }
     if (err?.kind === 'WrongPassword') return 'Wrong password.'
     if (err?.kind === 'Other' && err.message) return err.message
     return 'Something went wrong talking to the YubiKey.'
   },
 }))
+
+vi.mock('../../lib/presence', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../lib/presence')>()
+  return { ...actual, requirePresence: vi.fn().mockResolvedValue(undefined) }
+})
 
 async function flush() {
   await new Promise((r) => setTimeout(r))
@@ -32,6 +39,7 @@ beforeEach(() => {
   vi.mocked(ykman.oathUnlock).mockResolvedValue(undefined)
   vi.mocked(ykman.oathListAccounts).mockResolvedValue([])
   vi.mocked(ykman.oathRename).mockResolvedValue(undefined)
+  vi.mocked(requirePresence).mockResolvedValue(undefined)
 })
 
 describe('RenameDialog', () => {
@@ -125,13 +133,46 @@ describe('RenameDialog', () => {
       await flush()
 
       expect(ykman.oathRename).toHaveBeenCalledTimes(1)
-      expect(ykman.oathRename).toHaveBeenCalledWith('AAA', 'Service:user', 'Service', 'user2', null)
+      expect(ykman.oathRename).toHaveBeenCalledWith('AAA', 'Service:user', 'Service', 'user2', null, { skipPresence: true })
 
       const results = wrapper.find('[data-test="rename-all-results"]')
       expect(results.text()).toContain('Key A')
       expect(results.text()).toContain('Renamed')
       expect(results.text()).toContain('Key B')
       expect(results.text()).toContain('Not present')
+    })
+
+    it('checks presence once for the whole rename-all batch, not once per key', async () => {
+      useKeysStore().keys = [
+        { serial: 'AAA', name: 'Key A' },
+        { serial: 'BBB', name: 'Key B' },
+      ]
+      vi.mocked(ykman.oathListAccounts).mockResolvedValue([
+        { query: 'Service:user', issuer: 'Service', name: 'user', period: 30, touchRequired: false },
+      ])
+
+      const wrapper = mount(RenameDialog, { props: { visible: true, issuer: 'Service', name: 'user', query: 'Service:user' } })
+      await wrapper.find('[data-test="rename-submit-all"]').trigger('click')
+      await flush()
+
+      expect(requirePresence).toHaveBeenCalledTimes(1)
+      expect(ykman.oathRename).toHaveBeenCalledTimes(2)
+    })
+
+    it('aborts rename-all with no per-key attempts when the upfront presence check is cancelled', async () => {
+      useKeysStore().keys = [
+        { serial: 'AAA', name: 'Key A' },
+        { serial: 'BBB', name: 'Key B' },
+      ]
+      vi.mocked(requirePresence).mockRejectedValue(new PresenceCancelledError())
+
+      const wrapper = mount(RenameDialog, { props: { visible: true, issuer: 'Service', name: 'user', query: 'Service:user' } })
+      await wrapper.find('[data-test="rename-submit-all"]').trigger('click')
+      await flush()
+
+      expect(ykman.oathListAccounts).not.toHaveBeenCalled()
+      expect(ykman.oathRename).not.toHaveBeenCalled()
+      expect(wrapper.find('[data-test="rename-all-results"]').exists()).toBe(false)
     })
 
     it('prompts inline for a locked key, then continues and closes on Done', async () => {
@@ -156,7 +197,7 @@ describe('RenameDialog', () => {
       await flush()
 
       expect(ykman.oathUnlock).toHaveBeenCalledWith('BBB', 'hunter2', false)
-      expect(ykman.oathRename).toHaveBeenCalledWith('BBB', 'Service:user', 'Service', 'user', 'hunter2')
+      expect(ykman.oathRename).toHaveBeenCalledWith('BBB', 'Service:user', 'Service', 'user', 'hunter2', { skipPresence: true })
       expect(useUiStore().sessionPasswordFor('BBB')).toBe('hunter2')
 
       await wrapper.find('[data-test="rename-all-done"]').trigger('click')
@@ -199,8 +240,8 @@ describe('RenameDialog', () => {
       await flush()
 
       expect(ykman.oathListAccounts).not.toHaveBeenCalled()
-      expect(ykman.oathRename).toHaveBeenCalledWith('AAA', 'Service:user', 'Service', 'user2', null)
-      expect(ykman.oathRename).toHaveBeenCalledWith('BBB', 'Service:user', 'Service', 'user2', 'cached-pw')
+      expect(ykman.oathRename).toHaveBeenCalledWith('AAA', 'Service:user', 'Service', 'user2', null, { skipPresence: true })
+      expect(ykman.oathRename).toHaveBeenCalledWith('BBB', 'Service:user', 'Service', 'user2', 'cached-pw', { skipPresence: true })
 
       const results = wrapper.find('[data-test="rename-all-results"]')
       expect(results.text()).toContain('Key A')
@@ -209,6 +250,44 @@ describe('RenameDialog', () => {
 
       await wrapper.find('[data-test="rename-all-done"]').trigger('click')
       expect(wrapper.emitted('close')).toBeTruthy()
+    })
+
+    it('checks presence once for the whole rename-selected batch, not once per key', async () => {
+      const wrapper = mount(RenameDialog, {
+        props: {
+          visible: true,
+          issuer: 'Service',
+          name: 'user',
+          query: 'Service:user',
+          selectedKeys: [
+            { serial: 'AAA', name: 'Key A' },
+            { serial: 'BBB', name: 'Key B' },
+          ],
+        },
+      })
+      await wrapper.find('[data-test="rename-submit-selected"]').trigger('click')
+      await flush()
+
+      expect(requirePresence).toHaveBeenCalledTimes(1)
+      expect(ykman.oathRename).toHaveBeenCalledTimes(2)
+    })
+
+    it('aborts rename-selected with no per-key attempts when the upfront presence check is cancelled', async () => {
+      vi.mocked(requirePresence).mockRejectedValue(new PresenceCancelledError())
+      const wrapper = mount(RenameDialog, {
+        props: {
+          visible: true,
+          issuer: 'Service',
+          name: 'user',
+          query: 'Service:user',
+          selectedKeys: [{ serial: 'AAA', name: 'Key A' }],
+        },
+      })
+      await wrapper.find('[data-test="rename-submit-selected"]').trigger('click')
+      await flush()
+
+      expect(ykman.oathRename).not.toHaveBeenCalled()
+      expect(wrapper.find('[data-test="rename-all-results"]').exists()).toBe(false)
     })
 
     it('reports a per-key error and continues past it', async () => {

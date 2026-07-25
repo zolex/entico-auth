@@ -6,7 +6,7 @@ import { useAccountsStore } from '../../stores/accounts'
 import { useKeysStore } from '../../stores/keys'
 import { useUiStore } from '../../stores/ui'
 import { ykman } from '../../lib/ykman-client'
-import { PresenceCancelledError } from '../../lib/presence'
+import { PresenceCancelledError, requirePresence } from '../../lib/presence'
 import * as qrDecode from '../../lib/qr-decode'
 
 vi.mock('../../lib/ykman-client', () => ({
@@ -26,6 +26,11 @@ vi.mock('../../lib/ykman-client', () => ({
   },
 }))
 
+vi.mock('../../lib/presence', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../lib/presence')>()
+  return { ...actual, requirePresence: vi.fn().mockResolvedValue(undefined) }
+})
+
 async function flush() {
   await new Promise((r) => setTimeout(r))
 }
@@ -38,6 +43,7 @@ beforeEach(() => {
   vi.mocked(ykman.oathAddManual).mockResolvedValue(undefined)
   vi.mocked(ykman.oathListAccounts).mockResolvedValue([])
   vi.mocked(ykman.oathGetCodes).mockResolvedValue([])
+  vi.mocked(requirePresence).mockResolvedValue(undefined)
   vi.stubGlobal(
     'createImageBitmap',
     vi.fn().mockResolvedValue({ width: 1, height: 1 }),
@@ -202,6 +208,7 @@ describe('AddAccountSheet', () => {
         'AAA',
         { issuer: 'Service', name: 'user@domain.tld', secret: 'JBSWY3DPEHPK3PXP', digits: 6, algorithm: 'SHA1', period: 30, touchRequired: false },
         null,
+        { skipPresence: true },
       )
       expect(wrapper.text()).toContain('Key B')
       expect(wrapper.find('[data-test="pending-password"]').exists()).toBe(true)
@@ -215,6 +222,7 @@ describe('AddAccountSheet', () => {
         'BBB',
         { issuer: 'Service', name: 'user@domain.tld', secret: 'JBSWY3DPEHPK3PXP', digits: 6, algorithm: 'SHA1', period: 30, touchRequired: false },
         'hunter2',
+        { skipPresence: true },
       )
       expect(useUiStore().sessionPasswordFor('BBB')).toBe('hunter2')
 
@@ -242,7 +250,7 @@ describe('AddAccountSheet', () => {
       await flush()
 
       expect(ykman.oathUnlock).not.toHaveBeenCalled()
-      expect(ykman.oathAddManual).toHaveBeenCalledWith(expect.any(String), expect.anything(), 'cached-pw')
+      expect(ykman.oathAddManual).toHaveBeenCalledWith(expect.any(String), expect.anything(), 'cached-pw', { skipPresence: true })
       expect(wrapper.find('[data-test="save-all-results"]').exists()).toBe(true)
     })
 
@@ -265,7 +273,7 @@ describe('AddAccountSheet', () => {
       await flush()
 
       expect(ykman.oathAddManual).toHaveBeenCalledTimes(1)
-      expect(ykman.oathAddManual).toHaveBeenCalledWith('BBB', expect.anything(), null)
+      expect(ykman.oathAddManual).toHaveBeenCalledWith('BBB', expect.anything(), null, { skipPresence: true })
 
       const results = wrapper.find('[data-test="save-all-results"]')
       expect(results.text()).toContain('Skipped.')
@@ -290,6 +298,37 @@ describe('AddAccountSheet', () => {
       expect(results.text()).toContain('Saved')
       expect(results.text()).toContain('Key B')
       expect(results.text()).toContain('Cancelled.')
+    })
+
+    it('checks presence once for the whole batch, not once per key', async () => {
+      useKeysStore().keys = [
+        { serial: 'AAA', name: 'Key A' },
+        { serial: 'BBB', name: 'Key B' },
+      ]
+
+      const wrapper = mount(AddAccountSheet)
+      await fillManualForm(wrapper)
+      await wrapper.find('[data-test="manual-submit-all"]').trigger('click')
+      await flush()
+
+      expect(requirePresence).toHaveBeenCalledTimes(1)
+      expect(ykman.oathAddManual).toHaveBeenCalledTimes(2)
+    })
+
+    it('aborts the whole batch with no per-key attempts when the upfront presence check is cancelled', async () => {
+      useKeysStore().keys = [
+        { serial: 'AAA', name: 'Key A' },
+        { serial: 'BBB', name: 'Key B' },
+      ]
+      vi.mocked(requirePresence).mockRejectedValue(new PresenceCancelledError())
+
+      const wrapper = mount(AddAccountSheet)
+      await fillManualForm(wrapper)
+      await wrapper.find('[data-test="manual-submit-all"]').trigger('click')
+      await flush()
+
+      expect(ykman.oathAddManual).not.toHaveBeenCalled()
+      expect(wrapper.find('[data-test="save-all-results"]').exists()).toBe(false)
     })
 
     it('continues past a key whose save fails, and reports the reason', async () => {
@@ -352,6 +391,7 @@ describe('AddAccountSheet', () => {
         'BBB',
         { issuer: 'Service', name: 'user@domain.tld', secret: 'JBSWY3DPEHPK3PXP', digits: 6, algorithm: 'SHA1', period: 30, touchRequired: false },
         null,
+        { skipPresence: true },
       )
       expect(wrapper.find('[data-test="save-all-results"]').text()).toContain('Key B')
     })

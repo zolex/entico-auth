@@ -6,7 +6,7 @@ import { useKeysStore } from '../stores/keys'
 import { decodeQrFromImageData } from '../lib/qr-decode'
 import { parseOtpauthUri, type ParsedOtpauth } from '../lib/otpauth'
 import { ykman, describeYkmanError } from '../lib/ykman-client'
-import { PresenceCancelledError } from '../lib/presence'
+import { PresenceCancelledError, requirePresence } from '../lib/presence'
 import { autofocusSelect } from '../lib/autofocus'
 import { useKeyPasswordPrompt } from '../lib/useKeyPasswordPrompt'
 import type { YubiKeyInfo } from '../lib/types'
@@ -154,6 +154,12 @@ function continueFromUri() {
 
 async function runSaveToKeys(targets: YubiKeyInfo[]) {
   error.value = ''
+  try {
+    await requirePresence()
+  } catch (e) {
+    if (e instanceof PresenceCancelledError) return
+    throw e
+  }
   saveAllBusy.value = true
   const input = buildManualInput()
   const results: SaveAllResult[] = []
@@ -164,7 +170,7 @@ async function runSaveToKeys(targets: YubiKeyInfo[]) {
       continue
     }
     try {
-      await ykman.oathAddManual(key.serial, input, resolution.password)
+      await ykman.oathAddManual(key.serial, input, resolution.password, { skipPresence: true })
       results.push({ serial: key.serial, name: key.name, status: 'ok' })
     } catch (e) {
       results.push({ serial: key.serial, name: key.name, status: 'error', message: describeYkmanError(e) })

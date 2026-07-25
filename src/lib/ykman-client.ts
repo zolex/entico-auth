@@ -34,8 +34,11 @@ export const ykman = {
       touchRequired: boolean
     },
     password: string | null,
+    // Set by batch callers (add-to-all-keys) that already did one
+    // requirePresence() before the loop, so each key write doesn't re-prompt.
+    opts?: { skipPresence?: boolean },
   ) => {
-    await requirePresence()
+    if (!opts?.skipPresence) await requirePresence()
     return invoke<void>('oath_add_manual', {
       serial,
       issuer: input.issuer,
@@ -52,8 +55,17 @@ export const ykman = {
     await requirePresence()
     return invoke<void>('oath_add_uri', { serial, uri, password })
   },
-  oathRename: async (serial: string, query: string, newIssuer: string | null, newName: string, password: string | null) => {
-    await requirePresence()
+  oathRename: async (
+    serial: string,
+    query: string,
+    newIssuer: string | null,
+    newName: string,
+    password: string | null,
+    // Set by batch callers (rename-on-all/selected-keys) that already did one
+    // requirePresence() before the loop, so each key write doesn't re-prompt.
+    opts?: { skipPresence?: boolean },
+  ) => {
+    if (!opts?.skipPresence) await requirePresence()
     return invoke<void>('oath_rename', { serial, query, newIssuer, newName, password })
   },
   oathDelete: async (serial: string, query: string, password: string | null) => {

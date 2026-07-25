@@ -9,6 +9,7 @@ import { useKeysStore } from '../stores/keys'
 import { useAccountsStore } from '../stores/accounts'
 import { useUiStore } from '../stores/ui'
 import { ykman, describeYkmanError } from '../lib/ykman-client'
+import { PresenceCancelledError, requirePresence } from '../lib/presence'
 import type { YubiKeyInfo } from '../lib/types'
 
 const props = withDefaults(
@@ -95,6 +96,12 @@ async function submitAll() {
   const newName = nameInput.value.trim()
   if (!newName) return
   const newIssuer = issuerInput.value.trim() || null
+  try {
+    await requirePresence()
+  } catch (e) {
+    if (e instanceof PresenceCancelledError) return
+    throw e
+  }
   renameAllBusy.value = true
   const results: RenameResult[] = []
   for (const key of keys.keys) {
@@ -109,7 +116,7 @@ async function submitAll() {
         results.push({ serial: key.serial, name: key.name, status: 'skipped', message: 'Not present' })
         continue
       }
-      await ykman.oathRename(key.serial, props.query, newIssuer, newName, resolution.password)
+      await ykman.oathRename(key.serial, props.query, newIssuer, newName, resolution.password, { skipPresence: true })
       results.push({ serial: key.serial, name: key.name, status: 'ok' })
     } catch (e) {
       results.push({ serial: key.serial, name: key.name, status: 'error', message: describeYkmanError(e) })
@@ -127,11 +134,17 @@ async function submitSelected() {
   const newName = nameInput.value.trim()
   if (!newName) return
   const newIssuer = issuerInput.value.trim() || null
+  try {
+    await requirePresence()
+  } catch (e) {
+    if (e instanceof PresenceCancelledError) return
+    throw e
+  }
   renameAllBusy.value = true
   const results: RenameResult[] = []
   for (const key of props.selectedKeys ?? []) {
     try {
-      await ykman.oathRename(key.serial, props.query, newIssuer, newName, ui.sessionPasswordFor(key.serial))
+      await ykman.oathRename(key.serial, props.query, newIssuer, newName, ui.sessionPasswordFor(key.serial), { skipPresence: true })
       results.push({ serial: key.serial, name: key.name, status: 'ok' })
     } catch (e) {
       results.push({ serial: key.serial, name: key.name, status: 'error', message: describeYkmanError(e) })
