@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 use tauri::Manager;
@@ -25,6 +26,10 @@ pub struct AppSettings {
     pub minimize_on_autostart: bool,
     pub show_window_on_key_plugin: bool,
     pub require_hello_for_writes: bool,
+    // Missing from any settings.json saved before this field existed - #[serde(default)]
+    // so those files still parse instead of falling back to AppSettings::default() wholesale.
+    #[serde(default)]
+    pub key_names: HashMap<String, String>,
 }
 
 impl Default for AppSettings {
@@ -40,6 +45,7 @@ impl Default for AppSettings {
             minimize_on_autostart: true,
             show_window_on_key_plugin: true,
             require_hello_for_writes: true,
+            key_names: HashMap::new(),
         }
     }
 }
@@ -98,9 +104,28 @@ mod tests {
             minimize_on_autostart: true,
             show_window_on_key_plugin: true,
             require_hello_for_writes: true,
+            key_names: HashMap::from([("36705123".to_string(), "Work Key".to_string())]),
         };
         let json = serde_json::to_string(&s).unwrap();
         let back: AppSettings = serde_json::from_str(&json).unwrap();
         assert_eq!(s, back);
+    }
+
+    #[test]
+    fn parses_settings_json_saved_before_key_names_existed() {
+        let json = r#"{
+            "idleLockMinutes": null,
+            "launchAtStartup": true,
+            "lastActiveSerial": null,
+            "ykmanPath": null,
+            "rememberWindow": true,
+            "windowBounds": null,
+            "minimizeToTray": true,
+            "minimizeOnAutostart": true,
+            "showWindowOnKeyPlugin": true,
+            "requireHelloForWrites": true
+        }"#;
+        let settings: AppSettings = serde_json::from_str(json).unwrap();
+        assert_eq!(settings.key_names, HashMap::new());
     }
 }

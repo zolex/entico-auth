@@ -33,11 +33,11 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
         <p v-if="detail" class="detail">{{ detail }}</p>
         <p v-if="error" class="error">{{ error }}</p>
         <div class="actions">
-          <button class="btn btn-danger btn-block" data-test="confirm-danger" :disabled="busy" @click="emit('confirm')">
+          <button class="btn btn-danger btn-block" data-test="confirm-danger" tabindex="1" :disabled="busy" @click="emit('confirm')">
             <LoadingSpinner v-if="busy" inline :size="14" />
             <template v-else>Delete</template>
           </button>
-          <button class="btn btn-cancel btn-block" data-test="cancel" :disabled="busy" @click="emit('cancel')">
+          <button class="btn btn-cancel btn-block" data-test="cancel" tabindex="2" :disabled="busy" @click="emit('cancel')">
             Cancel
           </button>
         </div>

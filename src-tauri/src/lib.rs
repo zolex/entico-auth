@@ -186,6 +186,7 @@ pub fn run() {
             commands::set_require_hello_for_writes,
             commands::set_ykman_path,
             commands::clear_ykman_path,
+            commands::set_key_name,
             presence::check_hello_availability,
             presence::verify_presence,
         ])

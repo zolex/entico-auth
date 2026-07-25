@@ -312,4 +312,48 @@ describe('AddAccountSheet', () => {
       expect(results.text()).toContain('Wrong password.')
     })
   })
+
+  describe('Add to missing keys', () => {
+    it('prefills the manual form and auto-expands Advanced when the period differs', async () => {
+      const wrapper = mount(AddAccountSheet, {
+        props: {
+          prefill: { issuer: 'Service', name: 'user@domain.tld', period: 60, touchRequired: true },
+          missingKeys: [{ serial: 'BBB', name: 'Key B' }],
+        },
+      })
+
+      expect(wrapper.find<HTMLInputElement>('[data-test="issuer"]').element.value).toBe('Service')
+      expect(wrapper.find<HTMLInputElement>('[data-test="name"]').element.value).toBe('user@domain.tld')
+      expect(wrapper.find<HTMLInputElement>('[data-test="secret"]').element.value).toBe('')
+      expect(wrapper.find<HTMLInputElement>('input[type="number"]').element.value).toBe('60')
+      expect(wrapper.find('[data-test="manual-submit"]').exists()).toBe(false)
+      expect(wrapper.find('[data-test="manual-submit-all"]').exists()).toBe(false)
+      expect(wrapper.find('[data-test="manual-submit-missing"]').text()).toBe('Save to missing keys')
+    })
+
+    it('saves only to the missing keys passed in, not every connected key', async () => {
+      useKeysStore().keys = [
+        { serial: 'AAA', name: 'Key A' },
+        { serial: 'BBB', name: 'Key B' },
+      ]
+
+      const wrapper = mount(AddAccountSheet, {
+        props: {
+          prefill: { issuer: 'Service', name: 'user@domain.tld', period: 30, touchRequired: false },
+          missingKeys: [{ serial: 'BBB', name: 'Key B' }],
+        },
+      })
+      await wrapper.find('[data-test="secret"]').setValue('JBSWY3DPEHPK3PXP')
+      await wrapper.find('[data-test="manual-submit-missing"]').trigger('click')
+      await flush()
+
+      expect(ykman.oathAddManual).toHaveBeenCalledTimes(1)
+      expect(ykman.oathAddManual).toHaveBeenCalledWith(
+        'BBB',
+        { issuer: 'Service', name: 'user@domain.tld', secret: 'JBSWY3DPEHPK3PXP', digits: 6, algorithm: 'SHA1', period: 30, touchRequired: false },
+        null,
+      )
+      expect(wrapper.find('[data-test="save-all-results"]').text()).toContain('Key B')
+    })
+  })
 })

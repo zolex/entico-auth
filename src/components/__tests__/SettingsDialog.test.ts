@@ -22,6 +22,7 @@ vi.mock('../../lib/ykman-client', () => ({
       minimizeOnAutostart: false,
       showWindowOnKeyPlugin: false,
       requireHelloForWrites: false,
+      keyNames: {},
     }),
     setLaunchAtStartup: vi.fn().mockResolvedValue(undefined),
     setRememberWindow: vi.fn().mockResolvedValue(undefined),
@@ -53,6 +54,7 @@ beforeEach(() => {
     minimizeOnAutostart: false,
     showWindowOnKeyPlugin: false,
     requireHelloForWrites: false,
+    keyNames: {},
   })
   vi.mocked(ykman.checkHelloAvailability).mockResolvedValue(true)
 })
@@ -74,6 +76,7 @@ describe('SettingsDialog', () => {
       minimizeOnAutostart: false,
       showWindowOnKeyPlugin: false,
       requireHelloForWrites: false,
+      keyNames: {},
     })
     const wrapper = mount(SettingsDialog, { props: { visible: true } })
     await flushPromises()

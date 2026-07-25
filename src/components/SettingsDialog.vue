@@ -6,12 +6,14 @@ import { useKeysStore } from '../stores/keys'
 import { ykman, describeYkmanError } from '../lib/ykman-client'
 import FullPageDialog from './FullPageDialog.vue'
 import ToggleSwitch from './ToggleSwitch.vue'
+import { autofocusSelect } from '../lib/autofocus'
 
 const props = defineProps<{ visible: boolean }>()
 const emit = defineEmits<{ close: [] }>()
 
 const ui = useUiStore()
 const keys = useKeysStore()
+const minimizeToTrayRef = ref<InstanceType<typeof ToggleSwitch> | null>(null)
 const minimizeToTray = ref(false)
 const launchAtStartup = ref(false)
 const minimizeOnAutostart = ref(false)
@@ -62,6 +64,7 @@ watch(
       loadHelloAvailability()
       pathError.value = null
       pathMessage.value = null
+      autofocusSelect(minimizeToTrayRef)
     }
   },
 )
@@ -183,14 +186,14 @@ async function autoDetect() {
       </select>
     </div>
     <div class="field checkbox-field">
-      <ToggleSwitch :model-value="minimizeToTray" @update:model-value="(v) => { minimizeToTray = v; onMinimizeToTrayChange() }" />
+      <ToggleSwitch ref="minimizeToTrayRef" tabindex="1" :model-value="minimizeToTray" @update:model-value="(v) => { minimizeToTray = v; onMinimizeToTrayChange() }" />
       <div class="field-text">
         <label>Minimize to tray</label>
         <p class="field-description">Closing the window keeps Entico Auth running in the system tray instead of quitting.</p>
       </div>
     </div>
     <div class="field checkbox-field">
-      <ToggleSwitch :model-value="launchAtStartup" @update:model-value="(v) => { launchAtStartup = v; onLaunchAtStartupChange() }" />
+      <ToggleSwitch tabindex="2" :model-value="launchAtStartup" @update:model-value="(v) => { launchAtStartup = v; onLaunchAtStartupChange() }" />
       <div class="field-text">
         <label>Launch at Windows startup</label>
         <p class="field-description">Automatically start Entico Auth when you sign in to Windows.</p>
@@ -198,6 +201,7 @@ async function autoDetect() {
     </div>
     <div class="field checkbox-field" :class="{ 'is-disabled': !launchAtStartup }">
       <ToggleSwitch
+        tabindex="3"
         :model-value="minimizeOnAutostart"
         :disabled="!launchAtStartup"
         @update:model-value="(v) => { minimizeOnAutostart = v; onMinimizeOnAutostartChange() }"
@@ -208,7 +212,7 @@ async function autoDetect() {
       </div>
     </div>
     <div class="field checkbox-field">
-      <ToggleSwitch :model-value="rememberWindow" @update:model-value="(v) => { rememberWindow = v; onRememberWindowChange() }" />
+      <ToggleSwitch tabindex="4" :model-value="rememberWindow" @update:model-value="(v) => { rememberWindow = v; onRememberWindowChange() }" />
       <div class="field-text">
         <label>Remember window size and position</label>
         <p class="field-description">Restore the window to its last size and position next time you open the app.</p>
@@ -216,6 +220,7 @@ async function autoDetect() {
     </div>
     <div class="field checkbox-field">
       <ToggleSwitch
+        tabindex="5"
         :model-value="showWindowOnKeyPlugin"
         @update:model-value="(v) => { showWindowOnKeyPlugin = v; onShowWindowOnKeyPluginChange() }"
       />
@@ -231,6 +236,7 @@ async function autoDetect() {
     <div class="field checkbox-field" :class="{ 'is-disabled': !helloAvailable }">
       <ToggleSwitch
         data-test="require-hello"
+        tabindex="6"
         :model-value="requireHelloForWrites"
         :disabled="!helloAvailable"
         @update:model-value="(v) => { requireHelloForWrites = v; onRequireHelloForWritesChange() }"
@@ -248,14 +254,14 @@ async function autoDetect() {
 
     <div class="field">
       <label>ykman.exe path</label>
-      <input data-test="ykman-path" v-model="ykmanPathInput" placeholder="Auto-detected" :disabled="pathBusy" />
+      <input data-test="ykman-path" tabindex="7" v-model="ykmanPathInput" placeholder="Auto-detected" :disabled="pathBusy" />
     </div>
     <p v-if="pathError" class="field-error" data-test="path-error">{{ pathError }}</p>
     <p v-else-if="pathMessage" class="field-message" data-test="path-message">{{ pathMessage }}</p>
     <div class="path-actions">
-      <button class="btn btn-secondary-solid" data-test="browse" :disabled="pathBusy" @click="browseForPath">Browse…</button>
-      <button class="btn btn-secondary" data-test="auto-detect" :disabled="pathBusy" @click="autoDetect">Auto-detect</button>
-      <button class="btn btn-primary" data-test="save-path" :disabled="pathBusy || !ykmanPathInput.trim()" @click="savePath">Save</button>
+      <button class="btn btn-secondary-solid" data-test="browse" tabindex="8" :disabled="pathBusy" @click="browseForPath">Browse…</button>
+      <button class="btn btn-secondary" data-test="auto-detect" tabindex="9" :disabled="pathBusy" @click="autoDetect">Auto-detect</button>
+      <button class="btn btn-primary" data-test="save-path" tabindex="10" :disabled="pathBusy || !ykmanPathInput.trim()" @click="savePath">Save</button>
     </div>
   </FullPageDialog>
 </template>

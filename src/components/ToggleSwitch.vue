@@ -1,10 +1,16 @@
 <script setup lang="ts">
+import { ref } from 'vue'
+
 withDefaults(defineProps<{ modelValue: boolean; disabled?: boolean }>(), { disabled: false })
 defineEmits<{ 'update:modelValue': [value: boolean] }>()
+
+const buttonRef = ref<HTMLButtonElement | null>(null)
+defineExpose({ focus: () => buttonRef.value?.focus() })
 </script>
 
 <template>
   <button
+    ref="buttonRef"
     type="button"
     role="switch"
     :aria-checked="modelValue"

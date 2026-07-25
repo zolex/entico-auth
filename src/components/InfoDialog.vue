@@ -19,7 +19,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
       <div class="dialog">
         <DialogTitle :title="message" />
         <div class="actions">
-          <button class="btn btn-primary btn-block" data-test="ok" @click="emit('close')">OK</button>
+          <button class="btn btn-primary btn-block" data-test="ok" tabindex="1" @click="emit('close')">OK</button>
         </div>
       </div>
     </div>

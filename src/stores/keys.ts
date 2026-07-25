@@ -7,16 +7,36 @@ export const useKeysStore = defineStore('keys', {
     keys: [] as YubiKeyInfo[],
     activeSerial: null as string | null,
     ykmanMissing: false,
+    // A user-set override for how a key's name is displayed everywhere
+    // (menus, dialog headers, the OATH diff, ...), keyed by serial. Loaded
+    // once from persisted settings (see the checkOnce guard below) rather
+    // than re-fetched every poll cycle.
+    keyNames: {} as Record<string, string>,
+    keyNamesLoaded: false,
+    // The device's own reported name per serial, kept separately from
+    // `keyNames` so setKeyName can fall back to it when a custom name is
+    // cleared, without needing another round-trip to ykman.
+    deviceNames: {} as Record<string, string>,
   }),
   actions: {
     // Returns whether the underlying ykman call succeeded, so callers (see
     // checkOnceWithRetry below) can tell a transient failure apart from a
     // clean result without re-deriving the same try/catch.
     async checkOnce(): Promise<boolean> {
+      if (!this.keyNamesLoaded) {
+        try {
+          this.keyNames = (await ykman.getSettings()).keyNames
+          this.keyNamesLoaded = true
+        } catch {
+          // Transient read failure - try loading again on the next checkOnce.
+        }
+      }
       try {
-        const keys = await ykman.listKeys()
+        const rawKeys = await ykman.listKeys()
         this.ykmanMissing = false
-        const serials = keys.map((k) => k.serial)
+        const serials = rawKeys.map((k) => k.serial)
+        for (const k of rawKeys) this.deviceNames[k.serial] = k.name
+        const keys = rawKeys.map((k) => ({ serial: k.serial, name: this.keyNames[k.serial] ?? k.name }))
         this.keys = keys
         if (this.activeSerial && !serials.includes(this.activeSerial)) {
           this.activeSerial = null
@@ -60,6 +80,20 @@ export const useKeysStore = defineStore('keys', {
     },
     selectKey(serial: string) {
       this.activeSerial = serial
+    },
+    // Not a YubiKey write - this only edits local settings.json, so it
+    // deliberately doesn't go through requirePresence() the way OATH writes
+    // in ykman-client.ts do.
+    async setKeyName(serial: string, name: string | null) {
+      const trimmed = name?.trim() || null
+      await ykman.setKeyName(serial, trimmed)
+      if (trimmed) {
+        this.keyNames[serial] = trimmed
+      } else {
+        delete this.keyNames[serial]
+      }
+      const key = this.keys.find((k) => k.serial === serial)
+      if (key) key.name = trimmed ?? this.deviceNames[serial] ?? key.name
     },
   },
 })

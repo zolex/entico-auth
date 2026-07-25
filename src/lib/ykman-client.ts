@@ -93,4 +93,5 @@ export const ykman = {
   },
   setYkmanPath: (path: string) => invoke<void>('set_ykman_path', { path }),
   clearYkmanPath: () => invoke<void>('clear_ykman_path'),
+  setKeyName: (serial: string, name: string | null) => invoke<void>('set_key_name', { serial, name }),
 }

@@ -2,21 +2,32 @@
 import { computed } from 'vue'
 import { KeyRound } from '@lucide/vue'
 import { useKeysStore } from '../stores/keys'
+import type { YubiKeyInfo } from '../lib/types'
 
-const props = withDefaults(defineProps<{ title: string; hideKey?: boolean }>(), { hideKey: false })
+const props = withDefaults(defineProps<{ title: string; hideKey?: boolean; keys?: YubiKeyInfo[] }>(), {
+  hideKey: false,
+})
 
-const keys = useKeysStore()
-const activeKey = computed(() => (props.hideKey ? null : keys.keys.find((k) => k.serial === keys.activeSerial)))
+const keysStore = useKeysStore()
+const activeKey = computed(() => keysStore.keys.find((k) => k.serial === keysStore.activeSerial))
+// `keys` overrides the default single-active-key lookup - used when a dialog
+// targets a specific set of keys (e.g. save-to-missing-keys) rather than
+// whichever key happens to be active right now.
+const displayKeys = computed<YubiKeyInfo[]>(() => {
+  if (props.hideKey) return []
+  if (props.keys) return props.keys
+  return activeKey.value ? [activeKey.value] : []
+})
 </script>
 
 <template>
   <div class="dialog-title">
-    <template v-if="activeKey">
+    <template v-for="k in displayKeys" :key="k.serial">
       <div class="key-info">
         <div class="key-badge"><KeyRound :size="13" /></div>
         <div>
-          <p class="key-name">{{ activeKey.name }}</p>
-          <p class="serial">Serial {{ activeKey.serial }}</p>
+          <p class="key-name">{{ k.name }}</p>
+          <p class="serial">Serial {{ k.serial }}</p>
         </div>
       </div>
       <div class="title-divider" />

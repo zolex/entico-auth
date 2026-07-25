@@ -8,6 +8,7 @@ import LoadingSpinner from './LoadingSpinner.vue'
 import FullPageDialog from './FullPageDialog.vue'
 import PasswordField from './PasswordField.vue'
 import ToggleSwitch from './ToggleSwitch.vue'
+import { autofocusSelect } from '../lib/autofocus'
 
 const props = defineProps<{ visible: boolean; passwordProtected: boolean }>()
 const emit = defineEmits<{ close: []; changed: []; success: [message: string] }>()
@@ -22,6 +23,8 @@ const remember = ref(false)
 const rememberTouched = ref(false)
 const error = ref('')
 const busy = ref(false)
+const currentPasswordRef = ref<InstanceType<typeof PasswordField> | null>(null)
+const newPasswordRef = ref<InstanceType<typeof PasswordField> | null>(null)
 
 // Reset the form whenever the sheet is (re-)opened, mirroring RenameDialog/UnlockDialog.
 watch(
@@ -34,6 +37,9 @@ watch(
       remember.value = false
       rememberTouched.value = false
       error.value = ''
+      // "Current password" only exists when the key is already protected -
+      // otherwise "New password" is the form's first field.
+      autofocusSelect(props.passwordProtected ? currentPasswordRef : newPasswordRef)
     }
   },
 )
@@ -114,27 +120,27 @@ async function save() {
   <FullPageDialog :visible="visible" title="OATH password" :busy="busy" @back="emit('close')">
     <div class="field" v-if="passwordProtected">
       <label>Current password</label>
-      <PasswordField data-test="current-password" v-model="currentPassword" />
+      <PasswordField ref="currentPasswordRef" data-test="current-password" tabindex="1" v-model="currentPassword" />
     </div>
 
     <div class="field">
       <label>{{ passwordProtected ? 'New password (leave blank to remove)' : 'Set a password' }}</label>
-      <PasswordField data-test="new-password" v-model="newPassword" />
+      <PasswordField ref="newPasswordRef" data-test="new-password" tabindex="2" v-model="newPassword" />
     </div>
 
     <div class="field">
       <label>Confirm new password</label>
-      <PasswordField data-test="confirm-password" v-model="confirmPassword" />
+      <PasswordField data-test="confirm-password" tabindex="3" v-model="confirmPassword" />
     </div>
 
     <div class="field checkbox-field">
-      <ToggleSwitch data-test="remember" :model-value="remember" @update:model-value="(v) => { remember = v; onRememberChange() }" />
+      <ToggleSwitch data-test="remember" tabindex="4" :model-value="remember" @update:model-value="(v) => { remember = v; onRememberChange() }" />
       <label>Remember on this device</label>
     </div>
 
     <p v-if="error" class="field-error">{{ error }}</p>
 
-    <button class="btn btn-primary btn-block" data-test="save" :disabled="busy" @click="save">
+    <button class="btn btn-primary btn-block" data-test="save" tabindex="5" :disabled="busy" @click="save">
       <LoadingSpinner v-if="busy" inline :size="14" />
       <template v-else>Save</template>
     </button>

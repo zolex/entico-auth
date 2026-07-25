@@ -1,24 +1,36 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, nextTick } from 'vue'
+import { ref, computed, onMounted, nextTick, watch } from 'vue'
 import { ChevronDown } from '@lucide/vue'
 import { useAccountsStore } from '../stores/accounts'
 import { useKeysStore } from '../stores/keys'
-import { useUiStore } from '../stores/ui'
 import { decodeQrFromImageData } from '../lib/qr-decode'
 import { parseOtpauthUri, type ParsedOtpauth } from '../lib/otpauth'
 import { ykman, describeYkmanError } from '../lib/ykman-client'
-import { resolveOathStatus } from '../lib/oathStatusResolver'
 import { PresenceCancelledError } from '../lib/presence'
+import { autofocusSelect } from '../lib/autofocus'
+import { useKeyPasswordPrompt } from '../lib/useKeyPasswordPrompt'
+import type { YubiKeyInfo } from '../lib/types'
 import LoadingSpinner from './LoadingSpinner.vue'
 import FullPageDialog from './FullPageDialog.vue'
 import PasswordField from './PasswordField.vue'
 import ToggleSwitch from './ToggleSwitch.vue'
+import KeyPasswordPrompt from './KeyPasswordPrompt.vue'
 
-const props = withDefaults(defineProps<{ mode?: 'manual' | 'uri' | 'qr' }>(), { mode: 'manual' })
+const props = withDefaults(
+  defineProps<{
+    mode?: 'manual' | 'uri' | 'qr'
+    // Prefills the manual form (used from the OATH Diff view's "Add to
+    // missing keys" action) - no secret, since a diff scan never reads one.
+    prefill?: { issuer: string | null; name: string; period: number; touchRequired: boolean }
+    // When set, replaces the normal Save / Save-to-all-Keys buttons with a
+    // single "Save to missing keys" button scoped to just this list.
+    missingKeys?: YubiKeyInfo[]
+  }>(),
+  { mode: 'manual' },
+)
 const emit = defineEmits<{ close: [] }>()
 const accounts = useAccountsStore()
 const keys = useKeysStore()
-const ui = useUiStore()
 
 // Starts as whatever entry mode the speed-dial button picked; a successful
 // QR decode or URI parse below flips this to 'manual' so the user can
@@ -26,16 +38,19 @@ const ui = useUiStore()
 // them in by hand.
 const display = ref(props.mode)
 
-const issuer = ref('')
-const name = ref('')
+const issuer = ref(props.prefill?.issuer ?? '')
+const issuerRef = ref<HTMLInputElement | null>(null)
+const name = ref(props.prefill?.name ?? '')
 const secret = ref('')
+const secretRef = ref<InstanceType<typeof PasswordField> | null>(null)
 const digits = ref(6)
 const algorithm = ref('SHA1')
-const period = ref(30)
-const touchRequired = ref(false)
-const showAdvanced = ref(false)
+const period = ref(props.prefill?.period ?? 30)
+const touchRequired = ref(props.prefill?.touchRequired ?? false)
+const showAdvanced = ref(hasNonDefaultAdvanced(algorithm.value, digits.value, period.value))
 
 const uri = ref('')
+const uriInputRef = ref<HTMLInputElement | null>(null)
 
 const qrFileInput = ref<HTMLInputElement | null>(null)
 const qrError = ref('')
@@ -54,18 +69,39 @@ interface SaveAllResult {
 }
 const saveAllBusy = ref(false)
 const saveAllResults = ref<SaveAllResult[] | null>(null)
+const saveAllDoneBtnRef = ref<HTMLButtonElement | null>(null)
 
 // While saving to all keys, a key whose OATH password isn't cached yet pauses
 // the sequence and surfaces this inline prompt instead of the global
 // UnlockDialog - that dialog reads keys.activeSerial directly and is wired
 // into the app's own lock/relock state machine, which we don't want to
 // disturb just to ask for a different (non-active) key's password here.
-const pendingKey = ref<{ serial: string; name: string } | null>(null)
-const pendingPassword = ref('')
-const pendingRemember = ref(false)
-const pendingBusy = ref(false)
-const pendingError = ref<string | null>(null)
-let pendingResolve: ((result: string | 'skip') => void) | null = null
+const {
+  pendingKey,
+  pendingPassword,
+  pendingRemember,
+  pendingBusy,
+  pendingError,
+  resolvePasswordForKey,
+  onPendingSubmit,
+  onPendingSkip,
+} = useKeyPasswordPrompt()
+
+// Each of these becomes its own little "form" screen (only one ever shown
+// at a time) - focus its first field the moment it appears.
+watch(display, (mode) => {
+  if (mode === 'manual') autofocusSelect(props.prefill ? secretRef : issuerRef)
+  else if (mode === 'uri') autofocusSelect(uriInputRef)
+}, { immediate: true })
+watch(saveAllResults, (results) => {
+  if (results) autofocusSelect(saveAllDoneBtnRef)
+})
+
+// Whether any advanced field differs from its default (SHA1 / 6 digits /
+// 30s) - used to decide whether to auto-expand the Advanced section.
+function hasNonDefaultAdvanced(algorithm: string, digits: number, period: number) {
+  return algorithm !== 'SHA1' || digits !== 6 || period !== 30
+}
 
 function applyParsedAccount(parsed: ParsedOtpauth) {
   issuer.value = parsed.issuer || ''
@@ -74,7 +110,7 @@ function applyParsedAccount(parsed: ParsedOtpauth) {
   digits.value = parsed.digits
   algorithm.value = parsed.algorithm
   period.value = parsed.period
-  if (parsed.algorithm !== 'SHA1' || parsed.digits !== 6 || parsed.period !== 30) {
+  if (hasNonDefaultAdvanced(parsed.algorithm, parsed.digits, parsed.period)) {
     showAdvanced.value = true
   }
   display.value = 'manual'
@@ -116,70 +152,12 @@ function continueFromUri() {
   applyParsedAccount(parsed)
 }
 
-function promptForPassword(serial: string, keyName: string): Promise<string | 'skip'> {
-  return new Promise((resolve) => {
-    pendingKey.value = { serial, name: keyName }
-    pendingPassword.value = ''
-    pendingRemember.value = false
-    pendingError.value = null
-    pendingResolve = resolve
-  })
-}
-
-async function onPendingSubmit() {
-  if (!pendingKey.value) return
-  pendingBusy.value = true
-  pendingError.value = null
-  try {
-    await ykman.oathUnlock(pendingKey.value.serial, pendingPassword.value, pendingRemember.value)
-    ui.setSessionPassword(pendingKey.value.serial, pendingPassword.value)
-    const resolve = pendingResolve
-    const password = pendingPassword.value
-    pendingKey.value = null
-    pendingResolve = null
-    resolve?.(password)
-  } catch (e) {
-    pendingError.value = describeYkmanError(e)
-  } finally {
-    pendingBusy.value = false
-  }
-}
-
-function onPendingSkip() {
-  const resolve = pendingResolve
-  pendingKey.value = null
-  pendingResolve = null
-  resolve?.('skip')
-}
-
-type PasswordResolution = { ok: true; password: string | null } | { ok: false; reason: string }
-
-async function resolvePasswordForKey(serial: string, keyName: string): Promise<PasswordResolution> {
-  const outcome = await resolveOathStatus(serial, ykman)
-  switch (outcome.kind) {
-    case 'unprotected':
-    case 'remembered':
-      return { ok: true, password: null }
-    case 'oath-disabled':
-      return { ok: false, reason: 'OATH is disabled on this key.' }
-    case 'unknown':
-      return { ok: false, reason: "Couldn't reach this key." }
-    case 'locked': {
-      const cached = ui.sessionPasswordFor(serial)
-      if (cached) return { ok: true, password: cached }
-      const result = await promptForPassword(serial, keyName)
-      if (result === 'skip') return { ok: false, reason: 'Skipped.' }
-      return { ok: true, password: result }
-    }
-  }
-}
-
-async function submitManualToAll() {
+async function runSaveToKeys(targets: YubiKeyInfo[]) {
   error.value = ''
   saveAllBusy.value = true
   const input = buildManualInput()
   const results: SaveAllResult[] = []
-  for (const key of keys.keys) {
+  for (const key of targets) {
     const resolution = await resolvePasswordForKey(key.serial, key.name)
     if (!resolution.ok) {
       results.push({ serial: key.serial, name: key.name, status: 'error', message: resolution.reason })
@@ -195,6 +173,14 @@ async function submitManualToAll() {
   await accounts.refresh()
   saveAllBusy.value = false
   saveAllResults.value = results
+}
+
+function submitManualToAll() {
+  return runSaveToKeys(keys.keys)
+}
+
+function submitToMissingKeys() {
+  return runSaveToKeys(props.missingKeys ?? [])
 }
 
 function finishSaveAll() {
@@ -247,7 +233,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <FullPageDialog visible title="Add account" :busy="busy || saveAllBusy" @back="emit('close')">
+  <FullPageDialog visible title="Add account" :busy="busy || saveAllBusy" :keys="missingKeys" @back="emit('close')">
     <div v-if="saveAllResults">
       <ul class="save-all-results" data-test="save-all-results">
         <li v-for="r in saveAllResults" :key="r.serial">
@@ -256,95 +242,99 @@ onMounted(async () => {
           <span v-else class="result-error">{{ r.message }}</span>
         </li>
       </ul>
-      <button class="btn btn-primary btn-block" data-test="save-all-done" @click="finishSaveAll">Done</button>
+      <button ref="saveAllDoneBtnRef" class="btn btn-primary btn-block" data-test="save-all-done" tabindex="1" @click="finishSaveAll">Done</button>
     </div>
 
-    <div v-else-if="pendingKey">
-      <p>{{ pendingKey.name }} needs its OATH password to save this account.</p>
-      <div class="field">
-        <label>Password</label>
-        <PasswordField data-test="pending-password" v-model="pendingPassword" @keyup.enter="onPendingSubmit" />
-      </div>
-      <div class="field checkbox-field">
-        <ToggleSwitch v-model="pendingRemember" />
-        <label>Remember on this device</label>
-      </div>
-      <p v-if="pendingError" class="field-error">{{ pendingError }}</p>
-      <div class="btn-row">
-        <button class="btn btn-secondary btn-block" data-test="pending-skip" :disabled="pendingBusy" @click="onPendingSkip">
-          Skip
-        </button>
-        <button class="btn btn-primary btn-block" data-test="pending-submit" :disabled="pendingBusy" @click="onPendingSubmit">
-          <LoadingSpinner v-if="pendingBusy" inline :size="14" />
-          <template v-else>Unlock</template>
-        </button>
-      </div>
-    </div>
+    <KeyPasswordPrompt
+      v-else-if="pendingKey"
+      :pending-key="pendingKey"
+      v-model:password="pendingPassword"
+      v-model:remember="pendingRemember"
+      :busy="pendingBusy"
+      :error="pendingError"
+      @submit="onPendingSubmit"
+      @skip="onPendingSkip"
+    />
 
     <div v-else-if="display === 'manual'">
       <div class="field">
         <label>Issuer</label>
-        <input data-test="issuer" v-model="issuer" />
+        <input ref="issuerRef" data-test="issuer" tabindex="1" v-model="issuer" />
       </div>
       <div class="field">
         <label>Secret</label>
-        <PasswordField data-test="secret" v-model="secret" />
+        <PasswordField ref="secretRef" data-test="secret" tabindex="2" v-model="secret" />
       </div>
       <div class="field">
         <label>Account</label>
-        <input data-test="name" v-model="name" />
+        <input data-test="name" tabindex="3" v-model="name" />
       </div>
       <div class="field checkbox-field">
-        <ToggleSwitch v-model="touchRequired" />
+        <ToggleSwitch tabindex="4" v-model="touchRequired" />
         <label>Require touch</label>
       </div>
 
-      <button type="button" class="advanced-toggle" @click="showAdvanced = !showAdvanced">
+      <button type="button" class="advanced-toggle" tabindex="5" @click="showAdvanced = !showAdvanced">
         Advanced <ChevronDown class="chevron" :class="{ open: showAdvanced }" :size="16" />
       </button>
       <div v-if="showAdvanced">
         <div class="field">
           <label>Algorithm</label>
-          <select v-model="algorithm">
+          <select tabindex="6" v-model="algorithm">
             <option>SHA1</option><option>SHA256</option><option>SHA512</option>
           </select>
         </div>
         <div class="field">
           <label>Digits</label>
-          <select v-model.number="digits"><option :value="6">6</option><option :value="7">7</option><option :value="8">8</option></select>
+          <select tabindex="7" v-model.number="digits"><option :value="6">6</option><option :value="7">7</option><option :value="8">8</option></select>
         </div>
         <div class="field">
           <label>Period (s)</label>
-          <input type="number" v-model.number="period" />
+          <input type="number" tabindex="8" v-model.number="period" />
         </div>
       </div>
 
       <p v-if="error" class="field-error">{{ error }}</p>
       <div class="btn-row">
-        <button class="btn btn-primary btn-block" data-test="manual-submit" :disabled="busy || saveAllBusy" @click="submitManual">
-          <LoadingSpinner v-if="busy" inline :size="14" />
-          <template v-else>Save</template>
-        </button>
-        <button
-          v-if="showSaveAll"
-          class="btn btn-secondary-solid btn-block"
-          data-test="manual-submit-all"
-          :disabled="busy || saveAllBusy"
-          @click="submitManualToAll"
-        >
-          <LoadingSpinner v-if="saveAllBusy" inline :size="14" />
-          <template v-else>Save to all Keys</template>
-        </button>
+        <template v-if="missingKeys">
+          <button
+            class="btn btn-primary btn-block"
+            data-test="manual-submit-missing"
+            tabindex="9"
+            :disabled="busy || saveAllBusy"
+            @click="submitToMissingKeys"
+          >
+            <LoadingSpinner v-if="saveAllBusy" inline :size="14" />
+            <template v-else>Save to missing keys</template>
+          </button>
+        </template>
+        <template v-else>
+          <button class="btn btn-primary btn-block" data-test="manual-submit" tabindex="9" :disabled="busy || saveAllBusy" @click="submitManual">
+            <LoadingSpinner v-if="busy" inline :size="14" />
+            <template v-else>Save</template>
+          </button>
+          <button
+            v-if="showSaveAll"
+            class="btn btn-secondary-solid btn-block"
+            data-test="manual-submit-all"
+            tabindex="10"
+            :disabled="busy || saveAllBusy"
+            @click="submitManualToAll"
+          >
+            <LoadingSpinner v-if="saveAllBusy" inline :size="14" />
+            <template v-else>Save to all Keys</template>
+          </button>
+        </template>
       </div>
     </div>
 
     <div v-else-if="display === 'uri'">
       <div class="field">
         <label>otpauth:// URI</label>
-        <input data-test="uri-input" v-model="uri" />
+        <input ref="uriInputRef" data-test="uri-input" tabindex="1" v-model="uri" />
       </div>
       <p v-if="error" class="field-error">{{ error }}</p>
-      <button class="btn btn-primary btn-block" data-test="uri-submit" @click="continueFromUri">Continue</button>
+      <button class="btn btn-primary btn-block" data-test="uri-submit" tabindex="2" @click="continueFromUri">Continue</button>
     </div>
 
     <div v-else>
@@ -354,12 +344,13 @@ onMounted(async () => {
         accept="image/*"
         data-test="qr-file-input"
         class="visually-hidden"
+        tabindex="-1"
         @change="onQrFileChosen"
         @cancel="onQrFileCancelled"
       />
       <p v-if="qrError" class="field-error">
         {{ qrError }}
-        <button type="button" class="retry-link" @click="browseForImage">Choose another image</button>
+        <button type="button" class="retry-link" tabindex="1" @click="browseForImage">Choose another image</button>
       </p>
       <p v-else class="status"><LoadingSpinner inline :size="14" /> Waiting for image selection…</p>
     </div>

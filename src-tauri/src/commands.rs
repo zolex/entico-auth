@@ -434,3 +434,21 @@ pub fn clear_ykman_path(app: tauri::AppHandle) -> Result<(), String> {
     set_custom_path(None);
     Ok(())
 }
+
+#[tauri::command]
+pub fn set_key_name(
+    app: tauri::AppHandle,
+    serial: String,
+    name: Option<String>,
+) -> Result<(), String> {
+    let mut settings = load(&app);
+    match name.map(|n| n.trim().to_string()) {
+        Some(n) if !n.is_empty() => {
+            settings.key_names.insert(serial, n);
+        }
+        _ => {
+            settings.key_names.remove(&serial);
+        }
+    }
+    save(&app, &settings)
+}

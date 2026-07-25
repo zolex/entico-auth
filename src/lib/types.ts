@@ -37,6 +37,7 @@ export interface AppSettings {
   minimizeOnAutostart: boolean
   showWindowOnKeyPlugin: boolean
   requireHelloForWrites: boolean
+  keyNames: Record<string, string>
 }
 
 export type YkmanError =

@@ -23,6 +23,8 @@ import RenameDialog from './components/RenameDialog.vue'
 import PasswordSettingsSheet from './components/PasswordSettingsSheet.vue'
 import SettingsDialog from './components/SettingsDialog.vue'
 import AboutDialog from './components/AboutDialog.vue'
+import OathDiffView from './components/OathDiffView.vue'
+import RenameKeyDialog from './components/RenameKeyDialog.vue'
 import LoadingSpinner from './components/LoadingSpinner.vue'
 import InfoDialog from './components/InfoDialog.vue'
 
@@ -43,6 +45,8 @@ const statusChecking = ref(false)
 const passwordSheetOpen = ref(false)
 const settingsOpen = ref(false)
 const aboutOpen = ref(false)
+const oathDiffOpen = ref(false)
+const renameKeyOpen = ref(false)
 const unlockBusy = ref(false)
 const unlockError = ref<string | null>(null)
 const passwordSuccessMessage = ref<string | null>(null)
@@ -194,6 +198,8 @@ function closeTransientUI(except?: 'menu' | 'speedDial') {
   deleteConfirm.value.visible = false
   settingsOpen.value = false
   aboutOpen.value = false
+  oathDiffOpen.value = false
+  renameKeyOpen.value = false
   passwordSheetOpen.value = false
   passwordSuccessMessage.value = null
 }
@@ -226,6 +232,16 @@ function openSettings() {
 function openAbout() {
   closeTransientUI()
   aboutOpen.value = true
+}
+
+function openOathDiff() {
+  closeTransientUI()
+  oathDiffOpen.value = true
+}
+
+function openRenameKey() {
+  closeTransientUI()
+  renameKeyOpen.value = true
 }
 
 function openPasswordSettings() {
@@ -523,6 +539,8 @@ watch(canSearch, (can) => {
       @open-password-settings="openPasswordSettings"
       @open-settings="openSettings"
       @open-about="openAbout"
+      @open-oath-diff="openOathDiff"
+      @open-rename-key="openRenameKey"
     />
 
     <div class="content-scroll">
@@ -579,10 +597,12 @@ watch(canSearch, (can) => {
       :visible="renameDialog.visible"
       :issuer="renameDialog.issuer"
       :name="renameDialog.name"
+      :query="renameDialog.query"
       :busy="renameDialog.busy"
       :error="renameDialog.error"
       @submit="onRenameSubmit"
       @cancel="renameDialog.visible = false"
+      @close="renameDialog.visible = false"
     />
     <ConfirmDialog
       :visible="deleteConfirm.visible"
@@ -603,6 +623,8 @@ watch(canSearch, (can) => {
     />
     <SettingsDialog :visible="settingsOpen" @close="settingsOpen = false" />
     <AboutDialog :visible="aboutOpen" @close="aboutOpen = false" />
+    <OathDiffView :visible="oathDiffOpen" @close="oathDiffOpen = false" />
+    <RenameKeyDialog :visible="renameKeyOpen" @close="renameKeyOpen = false" />
     <InfoDialog
       :visible="passwordSuccessMessage !== null"
       :message="passwordSuccessMessage ?? ''"

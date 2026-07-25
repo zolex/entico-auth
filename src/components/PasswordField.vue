@@ -6,11 +6,17 @@ defineProps<{ modelValue: string }>()
 defineEmits<{ 'update:modelValue': [value: string] }>()
 
 const visible = ref(false)
+const inputRef = ref<HTMLInputElement | null>(null)
+defineExpose({
+  focus: () => inputRef.value?.focus(),
+  select: () => inputRef.value?.select(),
+})
 </script>
 
 <template>
   <div class="password-field">
     <input
+      ref="inputRef"
       v-bind="$attrs"
       :type="visible ? 'text' : 'password'"
       :value="modelValue"
@@ -19,6 +25,7 @@ const visible = ref(false)
     <button
       type="button"
       class="eye-btn"
+      tabindex="-1"
       :aria-label="visible ? 'Hide password' : 'Show password'"
       @click="visible = !visible"
     >

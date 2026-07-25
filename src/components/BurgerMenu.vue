@@ -1,11 +1,18 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref } from 'vue'
-import { KeyRound, Shield, Settings, Info } from '@lucide/vue'
+import { KeyRound, Shield, Settings, Info, GitCompare, Pencil } from '@lucide/vue'
 import { getVersionLabel } from '../lib/version'
 import { useKeysStore } from '../stores/keys'
 
 const props = defineProps<{ visible: boolean }>()
-const emit = defineEmits<{ close: []; openPasswordSettings: []; openSettings: []; openAbout: [] }>()
+const emit = defineEmits<{
+  close: []
+  openPasswordSettings: []
+  openSettings: []
+  openAbout: []
+  openOathDiff: []
+  openRenameKey: []
+}>()
 
 function onKeydown(e: KeyboardEvent) {
   if (e.key === 'Escape' && props.visible) emit('close')
@@ -41,9 +48,18 @@ const keys = useKeysStore()
 
       <div class="divider" />
 
+      <button v-if="keys.activeSerial" class="menu-item" @click="emit('openRenameKey'); emit('close')">
+        <span class="menu-icon"><Pencil :size="16" /></span> Rename Key
+      </button>
       <button v-if="keys.activeSerial" class="menu-item" @click="emit('openPasswordSettings'); emit('close')">
         <span class="menu-icon"><Shield :size="16" /></span> OATH Password
       </button>
+      <button v-if="keys.keys.length > 1" class="menu-item" @click="emit('openOathDiff'); emit('close')">
+        <span class="menu-icon"><GitCompare :size="16" /></span> OATH Diff
+      </button>
+
+      <div class="divider divider-push" />
+
       <button class="menu-item" @click="emit('openSettings'); emit('close')">
         <span class="menu-icon"><Settings :size="16" /></span> Settings
       </button>
@@ -76,7 +92,7 @@ const keys = useKeysStore()
   top: var(--titlebar-h);
   left: 0;
   bottom: 0;
-  width: 280px;
+  width: 340px;
   background: #161616;
   color: #f2f2f2;
   z-index: 32;
@@ -126,8 +142,10 @@ h4 {
   background: #2a2a2a;
   margin: 8px 16px;
 }
-.version {
+.divider-push {
   margin-top: auto;
+}
+.version {
   padding: 12px 0 4px;
   text-align: center;
   font-size: 11px;

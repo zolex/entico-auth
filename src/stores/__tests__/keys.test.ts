@@ -4,12 +4,13 @@ import { useKeysStore } from '../keys'
 import { ykman } from '../../lib/ykman-client'
 
 vi.mock('../../lib/ykman-client', () => ({
-  ykman: { listKeys: vi.fn(), checkYkman: vi.fn() },
+  ykman: { listKeys: vi.fn(), checkYkman: vi.fn(), getSettings: vi.fn(), setKeyName: vi.fn() },
 }))
 
 beforeEach(() => {
   setActivePinia(createPinia())
   vi.useFakeTimers()
+  vi.mocked(ykman.getSettings).mockResolvedValue({ keyNames: {} } as unknown as Awaited<ReturnType<typeof ykman.getSettings>>)
 })
 
 afterEach(() => {
@@ -104,6 +105,45 @@ describe('useKeysStore', () => {
       await promise
 
       expect(ykman.listKeys).toHaveBeenCalledTimes(3) // initial attempt + 2 retries
+    })
+  })
+
+  describe('custom key names', () => {
+    it('displays the persisted custom name instead of the device name', async () => {
+      vi.mocked(ykman.getSettings).mockResolvedValue({
+        keyNames: { '36705123': 'Work Key' },
+      } as unknown as Awaited<ReturnType<typeof ykman.getSettings>>)
+      vi.mocked(ykman.listKeys).mockResolvedValue([{ serial: '36705123', name: 'YubiKey 5 NFC' }])
+      const store = useKeysStore()
+
+      await store.checkOnce()
+
+      expect(store.keys).toEqual([{ serial: '36705123', name: 'Work Key' }])
+    })
+
+    it('setKeyName overrides the displayed name immediately, without re-listing', async () => {
+      vi.mocked(ykman.listKeys).mockResolvedValue([{ serial: '36705123', name: 'YubiKey 5 NFC' }])
+      const store = useKeysStore()
+      await store.checkOnce()
+
+      await store.setKeyName('36705123', 'Work Key')
+
+      expect(ykman.setKeyName).toHaveBeenCalledWith('36705123', 'Work Key')
+      expect(store.keys).toEqual([{ serial: '36705123', name: 'Work Key' }])
+    })
+
+    it('setKeyName with an empty name reverts to the device name', async () => {
+      vi.mocked(ykman.getSettings).mockResolvedValue({
+        keyNames: { '36705123': 'Work Key' },
+      } as unknown as Awaited<ReturnType<typeof ykman.getSettings>>)
+      vi.mocked(ykman.listKeys).mockResolvedValue([{ serial: '36705123', name: 'YubiKey 5 NFC' }])
+      const store = useKeysStore()
+      await store.checkOnce()
+
+      await store.setKeyName('36705123', '  ')
+
+      expect(ykman.setKeyName).toHaveBeenCalledWith('36705123', null)
+      expect(store.keys).toEqual([{ serial: '36705123', name: 'YubiKey 5 NFC' }])
     })
   })
 })

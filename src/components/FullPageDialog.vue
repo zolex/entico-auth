@@ -2,9 +2,10 @@
 import { onMounted, onUnmounted } from 'vue'
 import { ArrowLeft } from '@lucide/vue'
 import DialogTitle from './DialogTitle.vue'
+import type { YubiKeyInfo } from '../lib/types'
 
 const props = withDefaults(
-  defineProps<{ visible: boolean; title: string; busy?: boolean; hideKey?: boolean }>(),
+  defineProps<{ visible: boolean; title: string; busy?: boolean; hideKey?: boolean; keys?: YubiKeyInfo[] }>(),
   { busy: false, hideKey: false },
 )
 const emit = defineEmits<{ back: [] }>()
@@ -22,7 +23,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
     <div class="page-dialog" v-if="visible">
       <div class="page-dialog-header">
         <button class="page-dialog-back" data-test="back" :disabled="busy" @click="emit('back')"><ArrowLeft :size="20" /></button>
-        <DialogTitle :title="title" :hide-key="hideKey" />
+        <DialogTitle :title="title" :hide-key="hideKey" :keys="keys" />
       </div>
       <div class="page-dialog-body">
         <slot />
