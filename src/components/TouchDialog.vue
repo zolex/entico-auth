@@ -2,10 +2,12 @@
 import { computed } from 'vue'
 import { KeyRound } from '@lucide/vue'
 import { useKeysStore } from '../stores/keys'
+import { useUiStore } from '../stores/ui'
 
 withDefaults(defineProps<{ visible: boolean; waiting?: boolean }>(), { waiting: false })
 
 const keys = useKeysStore()
+const ui = useUiStore()
 const activeKey = computed(() => keys.keys.find((k) => k.serial === keys.activeSerial))
 </script>
 
@@ -22,6 +24,7 @@ const activeKey = computed(() => keys.keys.find((k) => k.serial === keys.activeS
         </div>
         <div class="spinner" :class="{ waiting }" />
         <p>{{ waiting ? 'Getting ready for a fresh code…' : 'Touch your YubiKey…' }}</p>
+        <p class="demo-hint" v-if="ui.demoMode">Demo mode: touch is simulated, no key needed.</p>
       </div>
     </div>
   </Transition>
@@ -32,9 +35,10 @@ const activeKey = computed(() => keys.keys.find((k) => k.serial === keys.activeS
 .key-badge { width: 28px; height: 28px; border-radius: 50%; background: #202020; display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0; }
 .key-name { margin: 0; font-size: 13px; font-weight: 600; color: #f2f2f2; }
 .serial { margin: 2px 0 0; font-size: 12px; color: #7a7a7a; }
+.demo-hint { margin: 10px 0 0; font-size: 12px; color: #7a7a7a; }
 .overlay {
   position: fixed;
-  top: var(--titlebar-h);
+  top: calc(var(--titlebar-h) + var(--demo-banner-h));
   left: 0;
   right: 0;
   bottom: 0;
