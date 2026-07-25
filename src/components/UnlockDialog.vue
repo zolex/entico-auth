@@ -5,6 +5,7 @@ import PasswordField from './PasswordField.vue'
 import ToggleSwitch from './ToggleSwitch.vue'
 import LoadingSpinner from './LoadingSpinner.vue'
 import { autofocusSelect } from '../lib/autofocus'
+import type { YubiKeyInfo } from '../lib/types'
 
 const props = withDefaults(
   defineProps<{
@@ -14,11 +15,12 @@ const props = withDefaults(
     error?: string | null
     title?: string
     hideKey?: boolean
+    keys?: YubiKeyInfo[]
   }>(),
   {
     busy: false,
     error: null,
-    title: 'Unlock',
+    title: 'Unlock YubiKey',
     hideKey: false,
   },
 )
@@ -47,7 +49,7 @@ function submit() {
   <Transition name="zoom">
     <div class="page-dialog" v-if="visible">
       <div class="page-dialog-header">
-        <DialogTitle :title="props.title" :hide-key="props.hideKey" />
+        <DialogTitle :title="props.title" :hide-key="props.hideKey" :keys="props.keys" />
       </div>
       <div class="page-dialog-body">
         <template v-if="passwordProtected">

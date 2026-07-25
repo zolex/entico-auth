@@ -198,8 +198,7 @@ function onUnlockSubmit(password: string, remember: boolean) {
       :password-protected="true"
       :busy="unlockBusy"
       :error="unlockError"
-      hide-key
-      :title="unlockTarget ? `Unlock ${unlockTarget.keyName} (${unlockTarget.serial})` : 'Unlock'"
+      :keys="unlockTarget ? [{ serial: unlockTarget.serial, name: unlockTarget.keyName }] : []"
       @submit="onUnlockSubmit"
     />
   </FullPageDialog>
