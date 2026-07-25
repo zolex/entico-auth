@@ -10,71 +10,52 @@ thin, good-looking window onto whatever is already on your key, nothing more.
 
 ## Features
 
-- **Live account grid** - responsive card layout, codes refreshed automatically as each
-  account's TOTP period rolls over.
-- **Add accounts** three ways - manual entry, pasted `otpauth://` URI, or a QR code image file
-  (decoded client-side, no webcam).
-- **Touch-required accounts** - "tap to reveal" cards that block on the physical key touch, same
-  as `ykman` itself.
-- **Rename / delete** accounts directly on the device.
-- **OATH password support** - unlock prompt, optional "remember on this device" (delegated to
-  the OS keychain via `ykman`), set/change/remove password from the menu.
-- **Windows Hello confirmation** - every operation that changes the key's contents (add, rename,
-  delete, OATH password changes) asks for a fresh Windows Hello check first, so a second person at
-  an unlocked, unattended machine can't slip a change through. Degrades gracefully - and the
-  setting greys itself out - on a machine without Hello enrolled, and can be turned off entirely
-  in Settings (turning it *off* itself requires a Hello confirmation, so the protection can't be
-  silently disabled either).
-- **Multi-key support** - switch between multiple connected YubiKeys.
-- **System tray** - closes to tray instead of quitting, with a manual lock and quit from the
-  tray menu; launches at Windows startup and starts minimized to the tray by default.
-- **Search** - quick filter across issuer/account name.
-- **Zero local secrets** - the app never stores, caches, or transmits an OATH secret; only
-  non-sensitive settings (window/tray behavior, launch-at-startup, the Hello-gate toggle,
-  last-used key) persist locally.
+The look and feel of [Ente Auth](https://ente.io/auth) - a clean, live account grid instead of
+the official [Yubico Authenticator](https://www.yubico.com/products/yubico-authenticator/)'s
+utilitarian list - plus a few YubiKey-specific things Yubico Authenticator doesn't do:
+
+- **Add an account to every connected key at once**, instead of repeating manual entry per key.
+- **A diff view across connected keys** - see at a glance which accounts are missing or out of
+  sync between two keys, and fix it from the same screen.
+- **Optional Windows Hello confirmation** on every write (add, rename, delete, OATH password changes), so
+  a second person at an unlocked, unattended machine can't slip a change through.
+- **Try Demo mode** - explore the full UI with simulated accounts, no YubiKey required.
+
+Beyond that: QR-code account import, tap-to-reveal accounts, rename/delete, OATH password
+support, multi-key switching, system tray with autostart, and search. No secrets are ever
+stored by Entico Auth - only non-sensitive settings like window/tray behavior, or custom key names are persisted.
 
 ## Requirements
 
 - Windows 10/11
 - [YubiKey Manager](https://developers.yubico.com/yubikey-manager/Releases/) (`ykman.exe`)
-  installed and on your `PATH` (or at its default install location)
+  installed
 - A YubiKey with the OATH application enabled
-- Optional: Windows Hello enrolled, for the write-confirmation prompt above (the app works fine
-  without it - writes just proceed without the extra confirmation)
+- Optional: Windows Hello enrolled, for additional write-protection when `ykman` remembers your password
 
 ## Installation
 
 Download the latest installer (`.msi` or `.exe`) from the
 [Releases](https://github.com/zolex/entico-auth/releases) page and run it.
 
-## Development
+## Demo
 
-```sh
-make install   # npm install
-make dev       # run the app in dev mode (npm run tauri dev)
-make build     # type-check + build frontend, then a debug Tauri build
-make release   # full release build (installers/bundles)
-make test      # frontend (vitest) + Rust (cargo test)
-make lint      # cargo fmt --check + cargo clippy
-```
+No YubiKey or `ykman` install handy? Pick "Try Demo" from the menu. It swaps in a fully simulated
+key with a few sample accounts, computed with real TOTP math, so codes tick over just like the
+real thing. Every feature works against it - add, rename, delete, touch-required reveal, multi-key
+diff - nothing here ever touches actual hardware or `ykman.exe`. A banner stays on screen the whole
+time so it's never mistaken for a real key. Exit any time from the same menu.
 
-### Stack
+### Menu with multiple YukiKeys
+<img src="docs/demo1.png" alt="Account grid in demo mode" />
 
-- **Frontend:** Vue 3 + TypeScript + Pinia, built with Vite.
-- **Shell:** Tauri (Rust backend, WebView2 on Windows).
-- **YubiKey access:** the Rust backend shells out to the user's installed `ykman.exe` for every
-  operation - no OATH/CCID/TOTP logic is reimplemented, and no Rust or JS code ever touches a
-  secret directly.
+### YoubiKey Touch protection
+<img src="docs/demo3.png" alt="Demo mode, third screenshot" />
 
-### Project layout
+### Yubikey Diff
+<img src="docs/demo2.png" alt="Demo mode, second screenshot" />
 
-```
-src/                  Vue frontend (components, Pinia stores, lib helpers)
-src-tauri/src/        Rust backend (Tauri commands, ykman wrapper, tray, settings)
-```
 
-## Non-goals
 
-HOTP accounts, full OATH reset / bulk PSKC import-export, custom account ordering, light mode,
-i18n, an in-app auto-updater, and macOS/Linux builds are intentionally out of scope for now -
-Entico Auth targets one job on Windows: a clean live view over your YubiKey's TOTP accounts.
+
+

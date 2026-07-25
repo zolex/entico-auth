@@ -7,7 +7,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Entico Auth: a Windows desktop app (Tauri + Vue 3 + TypeScript) that manages TOTP accounts stored
 on a YubiKey's OATH application, styled after Ente Auth. There is no local secret store - every
 operation shells out to the user's installed `ykman.exe` CLI, and every code is computed live by
-the hardware key. See `README.md` for features/non-goals.
+the hardware key. See `README.md` for features.
+
+## Non-goals
+
+HOTP accounts, full OATH reset / bulk PSKC import-export, custom account ordering, light mode,
+i18n, an in-app auto-updater, and macOS/Linux builds are intentionally out of scope for now -
+Entico Auth targets one job on Windows: a clean live view over your YubiKey's TOTP accounts.
 
 ## Commands
 
